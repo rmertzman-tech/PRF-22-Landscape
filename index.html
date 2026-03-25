@@ -173,6 +173,36 @@ input[type=range].tn-slider::-webkit-slider-thumb{-webkit-appearance:none;
   #canvas-wrap{width:100vw!important;height:100vh!important}
   body{background:white}
 }
+
+/* ── Simple / Student Panel ── */
+#simple-panel{width:240px;flex:0 0 240px;overflow-y:auto;background:var(--panel);
+  border-right:1px solid var(--border);padding:.75rem .65rem;display:none}
+.sp-factor-row{margin-bottom:.8rem;padding:.6rem .7rem;
+  border:1px solid var(--border);border-radius:.45rem;background:var(--panel2)}
+.sp-factor-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.3rem}
+.sp-factor-name{font-family:'Cormorant Garamond',serif;font-size:.95rem;font-weight:700}
+.sp-factor-abbr{font-size:.65rem;font-family:'JetBrains Mono',monospace;color:var(--text-dim)}
+.sp-factor-desc{font-size:.65rem;color:var(--text-dim);margin-bottom:.45rem;line-height:1.4}
+.sp-slider-row{display:flex;align-items:center;gap:.4rem}
+input[type=range].sp-slider{flex:1;height:6px;border-radius:3px;
+  -webkit-appearance:none;cursor:pointer;outline:none}
+input[type=range].sp-slider::-webkit-slider-thumb{-webkit-appearance:none;
+  width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid var(--bg)}
+.sp-val{font-size:1rem;font-family:'JetBrains Mono',monospace;
+  color:var(--gold-light);min-width:2rem;text-align:right;font-weight:600}
+.sp-scale{display:flex;justify-content:space-between;font-size:.58rem;
+  color:var(--text-dim);margin-top:.25rem;padding:0 .1rem}
+.sp-item-list{margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border)}
+.sp-item-chip{display:inline-block;font-size:.58rem;
+  font-family:'JetBrains Mono',monospace;color:var(--text-dim);
+  background:rgba(255,255,255,.04);border-radius:2px;padding:.1rem .3rem;
+  margin:.1rem .1rem 0 0;line-height:1.5}
+/* Mode toggle button */
+.mode-toggle-btn{padding:.28rem .65rem;border-radius:4px;font-size:.72rem;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;transition:.15s;border:1px solid var(--border2);
+  background:var(--panel);color:var(--text-dim)}
+.mode-toggle-btn.active{border-color:var(--teal);background:var(--teal-dark);color:white}
+
 </style>
 </head>
 <body>
@@ -181,6 +211,9 @@ input[type=range].tn-slider::-webkit-slider-thumb{-webkit-appearance:none;
 <!-- ── HEADER ── -->
 <header>
   <div id="logo">PRF<span>-22</span> LANDSCAPE</div>
+  <div class="hdr-sep"></div>
+  <button class="mode-toggle-btn active" id="btn-mode-student" title="Student view: 7 factor scores">◫ Student</button>
+  <button class="mode-toggle-btn" id="btn-mode-researcher" title="Researcher view: all 22 items">⊞ Researcher</button>
   <div class="hdr-sep"></div>
   <input id="profile-name" type="text" placeholder="Profile name / subject…" maxlength="60">
   <div class="hdr-sep"></div>
@@ -196,6 +229,9 @@ input[type=range].tn-slider::-webkit-slider-thumb{-webkit-appearance:none;
 
   <!-- LEFT: t0 Inputs -->
   <aside id="left-panel" id="t0-panel"></aside>
+
+  <!-- SIMPLE (Student) input panel -->
+  <aside id="simple-panel"></aside>
 
   <!-- CENTER: canvas -->
   <section id="canvas-wrap">
@@ -992,7 +1028,13 @@ function seekAnim(e){
   const rect=progWrap.getBoundingClientRect();
   animProgress=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
   updateAnimProgressUI(animProgress);
-  updateTerrain(getCurrentAnimValues());
+  if(currentMode==='student'){
+    const ev=easeInOut(animProgress);
+    for(let i=0;i<7;i++) simpleScores[i]=animSimpleStart[i]*(1-ev)+tnSimpleScores[i]*ev;
+    updateTerrainSimple();
+  } else {
+    updateTerrain(getCurrentAnimValues());
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1038,7 +1080,21 @@ function renderLoop(time){
     animLastTime=time;
     animProgress=Math.min(1, animProgress+dt/animDuration);
     updateAnimProgressUI(animProgress);
-    updateTerrain(getCurrentAnimValues());
+    if(currentMode==='student'){
+      const e=easeInOut(animProgress);
+      for(let i=0;i<7;i++){
+        simpleScores[i]=animSimpleStart[i]*(1-e)+tnSimpleScores[i]*e;
+        const sl=document.getElementById('sp-sl-'+i);
+        const vd=document.getElementById('sp-v-'+i);
+        if(sl){sl.value=simpleScores[i];
+          const pct=((simpleScores[i]-1)/4*100)+'%';
+          sl.style.background=`linear-gradient(90deg,${FACTORS[i].hex} ${pct},#1a2d4a ${pct})`;}
+        if(vd) vd.textContent=simpleScores[i].toFixed(1);
+      }
+      updateTerrainSimple();
+    } else {
+      updateTerrain(getCurrentAnimValues());
+    }
     if(animProgress>=1){
       animating=false;
       document.getElementById('btn-anim-play').textContent='▶ Play';
@@ -1049,10 +1105,202 @@ function renderLoop(time){
   renderer.render(scene,camera);
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// SIMPLE (STUDENT) PANEL
+// 7 sliders — one per factor — inputting factor scores directly
+// ═══════════════════════════════════════════════════════════════
+
+// Direct factor scores entered by student (1–5 scale, normalized to 0–1 internally)
+const simpleScores = new Array(7).fill(3); // 3 = midpoint
+
+const simplePanel = document.getElementById('simple-panel');
+let currentMode = 'student'; // 'student' | 'researcher'
+
+function buildSimplePanel(){
+  simplePanel.innerHTML = '';
+
+  const heading = document.createElement('div');
+  heading.style.cssText = 'margin-bottom:.65rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)';
+  heading.innerHTML = `
+    <div style="font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:700;
+      color:var(--teal-light);margin-bottom:.2rem">PRF Factor Scores</div>
+    <div style="font-size:.65rem;color:var(--text-dim);line-height:1.5">
+      Enter your score for each ethical framework dimension.<br>
+      1 = Strongly Disagree &nbsp;·&nbsp; 5 = Strongly Agree
+    </div>`;
+  simplePanel.appendChild(heading);
+
+  FACTORS.forEach((f, fi) => {
+    const row = document.createElement('div');
+    row.className = 'sp-factor-row';
+    row.style.borderColor = f.hex + '44';
+
+    const itemShorts = f.items.map(id => ITEMS[id-1].short).join(', ');
+
+    row.innerHTML = `
+      <div class="sp-factor-header">
+        <span class="sp-factor-name" style="color:${f.hex}">${f.name}</span>
+        <span class="sp-factor-abbr">${f.abbr}</span>
+      </div>
+      <div class="sp-factor-desc">${f.desc}</div>
+      <div class="sp-slider-row">
+        <input type="range" class="sp-slider" id="sp-sl-${fi}"
+          min="1" max="5" value="${simpleScores[fi]}" step="0.1"
+          style="background:linear-gradient(90deg,${f.hex} 50%,#1a2d4a 50%)">
+        <span class="sp-val" id="sp-v-${fi}">${simpleScores[fi].toFixed(1)}</span>
+      </div>
+      <div class="sp-scale">
+        <span>1 SD</span><span>2</span><span>3 N</span><span>4</span><span>5 SA</span>
+      </div>
+      <div class="sp-item-list">
+        <div style="font-size:.58rem;color:var(--text-dim);margin-bottom:.2rem">Measured by items:</div>
+        ${f.items.map(id=>`<span class="sp-item-chip">${id}·${ITEMS[id-1].short}</span>`).join('')}
+      </div>`;
+    simplePanel.appendChild(row);
+
+    // Inject thumb colour
+    const st = document.createElement('style');
+    st.textContent = `#sp-sl-${fi}::-webkit-slider-thumb{background:${f.hex}!important;border-color:var(--bg)}`;
+    document.head.appendChild(st);
+
+    // Wire slider
+    document.getElementById('sp-sl-'+fi).addEventListener('input', function(){
+      const v = parseFloat(this.value);
+      simpleScores[fi] = v;
+      document.getElementById('sp-v-'+fi).textContent = v.toFixed(1);
+      const pct = ((v-1)/4*100) + '%';
+      this.style.background = `linear-gradient(90deg,${f.hex} ${pct},#1a2d4a ${pct})`;
+      if(!animating) updateTerrainSimple();
+    });
+  });
+}
+
+// Compute terrain using simple scores directly (bypass 22-item computation)
+function updateTerrainSimple(){
+  const fs = simpleScores.map(v => (v-1)/4); // normalize 1–5 → 0–1
+  const pos = terrainGeo.attributes.position.array;
+  const col = colorBuf;
+  for(let k=0;k<GRID*GRID;k++){
+    const x=xzLut[k*2], z=xzLut[k*2+1];
+    const h=computeHeight(x,z,fs);
+    pos[k*3+1]=h;
+    const [r,g,b]=computeColor(x,z,fs,greyMode);
+    col[k*3]=r; col[k*3+1]=g; col[k*3+2]=b;
+  }
+  terrainGeo.attributes.position.needsUpdate=true;
+  terrainGeo.attributes.color.needsUpdate=true;
+  terrainGeo.computeVertexNormals();
+  // Synthetic values for updateLabels
+  const syntheticValues = t0Values; // labels use fs directly via closure trick
+  updateLabelsSimple(fs);
+  updateScoreBars(fs);
+}
+
+function updateLabelsSimple(fs){
+  const W=canvas.clientWidth, H=canvas.clientHeight;
+  FACTORS.forEach((f,i)=>{
+    const h=computeHeight(f.peakX,f.peakZ,fs);
+    tmpVec.set(f.peakX,h+0.25,f.peakZ);
+    tmpVec.project(camera);
+    const sx=(tmpVec.x+1)/2*W;
+    const sy=(-tmpVec.y+1)/2*H;
+    if(tmpVec.z>1.0){peakLabels[i].style.display='none';return;}
+    peakLabels[i].style.display='block';
+    peakLabels[i].style.left=sx+'px';
+    peakLabels[i].style.top=sy+'px';
+    document.getElementById('pl-score-'+i).textContent=simpleScores[i].toFixed(2);
+  });
+}
+
+// ── Mode switching ────────────────────────────────────────────
+function setMode(mode){
+  currentMode = mode;
+  const lp = document.getElementById('left-panel');
+  const sp = document.getElementById('simple-panel');
+  const btnS = document.getElementById('btn-mode-student');
+  const btnR = document.getElementById('btn-mode-researcher');
+
+  if(mode === 'student'){
+    // Sync simple scores from computed factor scores
+    const fs = computeFactorScores(t0Values);
+    fs.forEach((score,i)=>{
+      simpleScores[i] = parseFloat((score*4+1).toFixed(1));
+      const sl = document.getElementById('sp-sl-'+i);
+      const vd = document.getElementById('sp-v-'+i);
+      if(sl){
+        sl.value = simpleScores[i];
+        const pct = ((simpleScores[i]-1)/4*100)+'%';
+        sl.style.background = `linear-gradient(90deg,${FACTORS[i].hex} ${pct},#1a2d4a ${pct})`;
+      }
+      if(vd) vd.textContent = simpleScores[i].toFixed(1);
+    });
+    lp.style.display = 'none';
+    sp.style.display = 'block';
+    btnS.classList.add('active');
+    btnR.classList.remove('active');
+    updateTerrainSimple();
+  } else {
+    lp.style.display = 'block';
+    sp.style.display = 'none';
+    btnR.classList.add('active');
+    btnS.classList.remove('active');
+    updateTerrain(t0Values);
+  }
+}
+
+document.getElementById('btn-mode-student').addEventListener('click',()=>setMode('student'));
+document.getElementById('btn-mode-researcher').addEventListener('click',()=>setMode('researcher'));
+
+// ── Override animation getCurrentAnimValues for simple mode ───
+const _origGetCurrent = getCurrentAnimValues;
+function getCurrentValues(){
+  if(currentMode === 'student'){
+    const e = easeInOut(animProgress);
+    const tnSimple = tnValues.map((_,i)=>((computeFactorScores(tnValues)[i])*4+1));
+    return null; // signal: use simple
+  }
+  return getCurrentAnimValues();
+}
+
+// Patch render loop to call correct update
+const _origRenderLoop = renderLoop;
+// We intercept updateTerrain calls in renderLoop:
+// During animation in student mode, interpolate simpleScores toward tn factor scores
+let tnSimpleScores = new Array(7).fill(3);
+
+function syncTnSimpleScores(){
+  const fs = computeFactorScores(tnValues);
+  tnSimpleScores = fs.map(s=>s*4+1);
+}
+syncTnSimpleScores();
+
+// Override the copy-to-tn button to also sync tnSimpleScores
+document.getElementById('btn-copy-to-tn').addEventListener('click',()=>{
+  syncTnSimpleScores();
+},{capture:false});
+
+// Student-mode animation: interpolate between simpleScores (at t0) and tnSimpleScores
+const _origSimpleScores = [...simpleScores];
+let animSimpleStart = [...simpleScores];
+
+const origPlayBtn = document.getElementById('btn-anim-play');
+origPlayBtn.addEventListener('click',()=>{
+  if(currentMode==='student' && animProgress===0){
+    animSimpleStart=[...simpleScores];
+    syncTnSimpleScores();
+  }
+},{capture:false});
+
+
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
-updateTerrain(t0Values);
+buildSimplePanel();
+// Start in Student mode by default
+document.getElementById('left-panel').style.display='none';
+document.getElementById('simple-panel').style.display='block';
+updateTerrainSimple();
 renderLoop(0);
 </script>
 </body>
