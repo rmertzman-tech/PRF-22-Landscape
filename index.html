@@ -1,1719 +1,1059 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historical Futures Lab - CIB Thermodynamics Simulations</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        *:focus {
-            outline: 3px solid #2563eb;
-            outline-offset: 2px;
-        }
-        
-        @media print {
-            .no-print { display: none; }
-        }
-        
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-        
-        .timeline-node {
-            position: relative;
-        }
-        
-        .timeline-node::before {
-            content: '';
-            position: absolute;
-            left: 20px;
-            top: 40px;
-            bottom: -20px;
-            width: 2px;
-            background: #cbd5e1;
-        }
-        
-        .timeline-node:last-child::before {
-            display: none;
-        }
-        
-        .gradient-mandela {
-            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-        }
-        
-        .gradient-boisjoly {
-            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-        }
-        
-        .gradient-salk {
-            background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
-        }
-        
-        .gradient-carson {
-            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
-        }
-        
-        .path-a { border-color: #ef4444; background-color: #fef2f2; }
-        .path-b { border-color: #10b981; background-color: #f0fdf4; }
-        
-        .metric-critical { color: #dc2626; }
-        .metric-warning { color: #f59e0b; }
-        .metric-good { color: #10b981; }
-        .metric-excellent { color: #059669; }
-    </style>
-</head>
-<body class="bg-gray-50">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRF-22 Topological Landscape Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060d1a;--panel:#0a1528;--panel2:#0f1e35;
+  --border:#1a2d4a;--border2:#243d5e;
+  --text:#b8cce0;--text-bright:#dceeff;--text-dim:#5a7a9a;
+  --teal:#14b8a6;--teal-dark:#0d9488;--teal-light:#5eead4;
+  --gold:#c9a84c;--gold-light:#f0d070;
+  --red:#ef4444;--red-dim:#7f1d1d;
+  --scrollbar:#1a2d4a;
+  --fa:#2563eb;--fb:#dc2626;--fc:#7c3aed;--fd:#d97706;
+  --fe:#059669;--ff:#0891b2;--fg:#0f766e;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace}
+::-webkit-scrollbar{width:5px;background:var(--scrollbar)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
-<!-- Header -->
-<header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-6 shadow-xl">
-    <div class="max-w-7xl mx-auto px-4">
-        <h1 class="text-4xl font-bold mb-2">The Historical Futures Lab</h1>
-        <p class="text-xl opacity-90">Interactive CIB Thermodynamics Simulations</p>
-        <p class="text-sm mt-2 opacity-75">Ethics Beyond Boundaries - Saint Petersburg College</p>
-    </div>
+/* ── LAYOUT ─────────────────────────────────────── */
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+header{flex:0 0 auto;display:flex;align-items:center;gap:1rem;padding:.55rem 1rem;
+  background:var(--panel2);border-bottom:1px solid var(--border2);z-index:10}
+#main-area{flex:1;display:flex;min-height:0;overflow:hidden}
+#left-panel{width:240px;flex:0 0 240px;overflow-y:auto;background:var(--panel);
+  border-right:1px solid var(--border);padding:0}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+#right-panel{width:210px;flex:0 0 210px;overflow-y:auto;background:var(--panel);
+  border-left:1px solid var(--border);padding:.75rem}
+#anim-bar{flex:0 0 auto;background:var(--panel2);border-top:1px solid var(--border2);padding:.5rem 1rem}
+
+/* ── HEADER ─────────────────────────────────────── */
+#logo{font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:700;
+  color:var(--teal-light);letter-spacing:.04em;white-space:nowrap}
+#logo span{color:var(--gold);font-style:italic}
+#profile-name{flex:1;background:transparent;border:1px solid var(--border2);
+  border-radius:4px;padding:.25rem .6rem;color:var(--text-bright);font-size:.8rem;
+  font-family:'JetBrains Mono',monospace;max-width:240px}
+#profile-name:focus{outline:none;border-color:var(--teal)}
+#profile-name::placeholder{color:var(--text-dim)}
+.hdr-btn{padding:.3rem .7rem;border-radius:4px;border:1px solid var(--border2);
+  background:var(--panel);color:var(--text);font-size:.72rem;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;transition:.15s}
+.hdr-btn:hover{border-color:var(--teal);color:var(--teal-light)}
+.hdr-btn.primary{border-color:var(--gold);color:var(--gold)}
+.hdr-btn.primary:hover{background:rgba(201,168,76,.15)}
+.hdr-sep{width:1px;height:20px;background:var(--border2)}
+
+/* ── INPUT PANEL ─────────────────────────────────── */
+.factor-block{border-bottom:1px solid var(--border)}
+.factor-header{display:flex;align-items:center;gap:.45rem;padding:.55rem .75rem .45rem;
+  cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel);z-index:2}
+.factor-header:hover{background:var(--panel2)}
+.factor-dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px}
+.factor-name{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:.88rem;
+  color:var(--text-bright);flex:1}
+.factor-score-badge{font-size:.72rem;padding:.1rem .4rem;border-radius:3px;
+  font-family:'JetBrains Mono',monospace;font-weight:600}
+.factor-items{padding:.3rem .6rem .5rem}
+.item-row{margin-bottom:.55rem}
+.item-label{font-size:.65rem;color:var(--text-dim);margin-bottom:.2rem;
+  display:flex;justify-content:space-between;line-height:1.3}
+.item-label span{color:var(--gold);font-weight:600;font-size:.68rem}
+.item-q{font-size:.7rem;color:var(--text);margin-bottom:.25rem;line-height:1.4;
+  border-left:2px solid var(--border2);padding-left:.4rem;font-family:'Cormorant Garamond',serif;font-style:italic}
+.item-slider-row{display:flex;align-items:center;gap:.4rem}
+input[type=range].prf-slider{flex:1;height:4px;border-radius:2px;
+  -webkit-appearance:none;cursor:pointer;outline:none}
+input[type=range].prf-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;
+  border-radius:50%;cursor:pointer;border:2px solid var(--bg)}
+.item-val{font-size:.75rem;font-family:'JetBrains Mono',monospace;color:var(--gold-light);
+  min-width:1.4rem;text-align:right}
+.scale-labels{display:flex;justify-content:space-between;font-size:.58rem;
+  color:var(--text-dim);margin-top:.1rem;padding:0 .1rem}
+.reversed-tag{font-size:.58rem;color:#f87171;margin-left:.3rem}
+
+/* ── CANVAS AREA ─────────────────────────────────── */
+#terrain-canvas{display:block;width:100%;height:100%}
+#label-overlay{position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;overflow:hidden}
+.peak-label{position:absolute;transform:translate(-50%,-50%);
+  padding:.2rem .45rem .25rem;border-radius:4px;pointer-events:none;
+  border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(4px);
+  text-align:center;white-space:nowrap;transition:left .05s,top .05s}
+.peak-label-name{font-family:'Cormorant Garamond',serif;font-size:.72rem;
+  font-weight:700;display:block;letter-spacing:.03em}
+.peak-label-score{font-size:.65rem;font-family:'JetBrains Mono',monospace;
+  opacity:.85;display:block}
+#view-btns{position:absolute;bottom:.75rem;right:.75rem;display:flex;flex-direction:column;gap:.3rem}
+.view-btn{padding:.25rem .5rem;border:1px solid var(--border2);border-radius:3px;
+  background:rgba(10,21,40,.75);color:var(--text-dim);font-size:.65rem;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;transition:.15s;white-space:nowrap}
+.view-btn:hover{border-color:var(--teal);color:var(--teal-light)}
+#compass{position:absolute;top:.75rem;right:.75rem;
+  font-size:.7rem;color:var(--text-dim);text-align:center;
+  background:rgba(10,21,40,.65);border:1px solid var(--border);
+  padding:.3rem .5rem;border-radius:4px}
+
+/* ── RIGHT PANEL ─────────────────────────────────── */
+.rp-section{margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.rp-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--text-dim);margin-bottom:.45rem}
+.rp-title{font-family:'Cormorant Garamond',serif;font-size:.85rem;font-weight:700;
+  color:var(--text-bright);margin-bottom:.35rem}
+.factor-legend-row{display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem}
+.fl-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+.fl-text{font-size:.65rem;color:var(--text)}
+.fl-text strong{color:var(--text-bright);display:block;font-size:.7rem;
+  font-family:'Cormorant Garamond',serif;font-weight:700}
+.mode-toggle{display:flex;border:1px solid var(--border2);border-radius:4px;overflow:hidden;margin-bottom:.6rem}
+.mode-btn{flex:1;padding:.3rem;text-align:center;font-size:.68rem;cursor:pointer;
+  background:transparent;border:none;color:var(--text-dim);transition:.15s;
+  font-family:'JetBrains Mono',monospace}
+.mode-btn.active{background:var(--teal-dark);color:white}
+.rp-slider-row{display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem}
+.rp-slider-label{font-size:.68rem;color:var(--text);flex:1}
+input[type=range].rp-slider{flex:1;height:3px;-webkit-appearance:none;
+  cursor:pointer;border-radius:2px;outline:none;
+  background:linear-gradient(90deg,var(--teal) var(--pct,50%),var(--border2) var(--pct,50%))}
+input[type=range].rp-slider::-webkit-slider-thumb{-webkit-appearance:none;
+  width:11px;height:11px;border-radius:50%;background:var(--teal-light);cursor:pointer}
+.rp-val{font-size:.7rem;color:var(--teal-light);min-width:1.8rem;text-align:right;
+  font-family:'JetBrains Mono',monospace}
+.full-btn{width:100%;padding:.35rem;border-radius:4px;border:1px solid var(--border2);
+  background:var(--panel2);color:var(--text);font-size:.7rem;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;transition:.15s;margin-bottom:.4rem}
+.full-btn:hover{border-color:var(--teal);color:var(--teal-light)}
+.full-btn.accent{border-color:var(--gold);color:var(--gold)}
+.full-btn.accent:hover{background:rgba(201,168,76,.12)}
+.full-btn.danger{border-color:var(--red);color:var(--red)}
+
+/* ── ANIMATION BAR ───────────────────────────────── */
+#anim-bar{display:flex;flex-direction:column;gap:.35rem}
+#anim-controls{display:flex;align-items:center;gap:.75rem}
+.anim-btn{padding:.25rem .55rem;border-radius:3px;border:1px solid var(--border2);
+  background:var(--panel);color:var(--text);font-size:.72rem;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;transition:.15s}
+.anim-btn:hover{border-color:var(--teal);color:var(--teal-light)}
+.anim-btn.active{background:var(--teal-dark);border-color:var(--teal);color:white}
+#anim-progress-wrap{flex:1;position:relative;height:6px;background:var(--border);
+  border-radius:3px;cursor:pointer}
+#anim-progress-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));
+  border-radius:3px;width:0%;transition:width .05s linear}
+#anim-progress-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);
+  width:14px;height:14px;border-radius:50%;background:white;
+  border:2px solid var(--teal);left:0%;cursor:grab}
+#anim-labels{display:flex;justify-content:space-between;font-size:.62rem;
+  color:var(--text-dim);font-family:'JetBrains Mono',monospace}
+#tn-setup-toggle{font-size:.72rem;color:var(--text-dim);cursor:pointer;
+  text-decoration:none;padding:.1rem .4rem;border-radius:3px;border:1px solid var(--border)}
+#tn-setup-toggle:hover{color:var(--gold);border-color:var(--gold)}
+#tn-panel{display:none;padding:.5rem .25rem 0;border-top:1px solid var(--border);
+  max-height:160px;overflow-y:auto}
+.tn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.25rem .5rem}
+.tn-item{display:flex;flex-direction:column;gap:.1rem}
+.tn-item-label{font-size:.58rem;color:var(--text-dim)}
+.tn-item-row{display:flex;align-items:center;gap:.3rem}
+input[type=range].tn-slider{flex:1;height:3px;-webkit-appearance:none;cursor:pointer;
+  border-radius:2px;outline:none}
+input[type=range].tn-slider::-webkit-slider-thumb{-webkit-appearance:none;
+  width:9px;height:9px;border-radius:50%;cursor:pointer}
+.tn-val{font-size:.62rem;font-family:'JetBrains Mono',monospace;
+  color:var(--text-dim);min-width:1rem;text-align:right}
+
+/* ── PRINT ───────────────────────────────────────── */
+@media print{
+  #left-panel,#right-panel,#anim-bar,header{display:none!important}
+  #canvas-wrap{width:100vw!important;height:100vh!important}
+  body{background:white}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── HEADER ── -->
+<header>
+  <div id="logo">PRF<span>-22</span> LANDSCAPE</div>
+  <div class="hdr-sep"></div>
+  <input id="profile-name" type="text" placeholder="Profile name / subject…" maxlength="60">
+  <div class="hdr-sep"></div>
+  <button class="hdr-btn primary" id="btn-dl-color" title="Download color PNG">⬇ Color PNG</button>
+  <button class="hdr-btn" id="btn-dl-grey" title="Download greyscale PNG">⬇ Greyscale PNG</button>
+  <button class="hdr-btn" id="btn-print" title="Print">⎙ Print</button>
+  <div class="hdr-sep"></div>
+  <button class="hdr-btn" id="btn-reset-all" title="Reset all inputs to 3">↺ Reset</button>
 </header>
 
-<div id="app" class="max-w-7xl mx-auto px-4 py-8">
-    
-    <!-- Introduction -->
-    <section id="intro" class="bg-white rounded-2xl shadow-xl p-8 mb-8">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">How This Works</h2>
-        <div class="prose prose-lg max-w-none">
-            <p class="text-gray-700 mb-4">
-                This lab uses real historical figures at critical decision points in their lives. 
-                For each case, you'll:
-            </p>
-            <ol class="list-decimal list-inside space-y-2 text-gray-700 mb-6">
-                <li>See their <strong>actual assessment scores</strong> (reconstructed from historical evidence)</li>
-                <li>Understand the <strong>critical decision</strong> they faced</li>
-                <li>Run <strong>simulations</strong> of different choices using UCP 2v + CIB Thermodynamics</li>
-                <li>Compare <strong>predicted trajectories</strong> to what actually happened</li>
-                <li>Validate whether our models <strong>match reality</strong></li>
-            </ol>
-            
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6">
-                <h3 class="font-bold text-blue-900 mb-2">Why Historical Cases?</h3>
-                <p class="text-blue-900 text-sm">
-                    These aren't hypotheticals. These people made real choices with measurable consequences. 
-                    If our thermodynamic models can predict what actually happened, they're not just theory—
-                    they're describing fundamental laws of human flourishing.
-                </p>
-            </div>
-            
-            <button onclick="showCaseSelection()" class="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold text-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg">
-                Begin Historical Simulations
-            </button>
-        </div>
-    </section>
-    
-    <!-- Case Selection -->
-    <section id="case-selection" class="hidden">
-        <h2 class="text-3xl font-bold text-gray-900 mb-6">Select a Historical Case</h2>
-        
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Mandela Card -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow cursor-pointer" onclick="loadCase('mandela')">
-                <div class="gradient-mandela p-6 text-white">
-                    <h3 class="text-2xl font-bold mb-2">Nelson Mandela</h3>
-                    <p class="text-sm opacity-90">Robben Island, 1964</p>
-                </div>
-                <div class="p-6">
-                    <h4 class="font-bold text-gray-900 mb-2">The BioBond Decision</h4>
-                    <p class="text-sm text-gray-700 mb-4">
-                        Should he exercise daily in his 7×7 cell despite exhaustion, mockery, and no apparent benefit?
-                    </p>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600">Duration: 27 years</span>
-                        <span class="font-semibold text-green-600">Self-Care as Resistance</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Boisjoly Card -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow cursor-pointer" onclick="loadCase('boisjoly')">
-                <div class="gradient-boisjoly p-6 text-white">
-                    <h3 class="text-2xl font-bold mb-2">Roger Boisjoly</h3>
-                    <p class="text-sm opacity-90">Post-Challenger, 1986</p>
-                </div>
-                <div class="p-6">
-                    <h4 class="font-bold text-gray-900 mb-2">The Testimony Decision</h4>
-                    <p class="text-sm text-gray-700 mb-4">
-                        Should he tell the full truth to the Rogers Commission about management pressure?
-                    </p>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600">Duration: 5 years critical</span>
-                        <span class="font-semibold text-red-600">Truth vs. Career</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Salk Card -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow cursor-pointer" onclick="loadCase('salk')">
-                <div class="gradient-salk p-6 text-white">
-                    <h3 class="text-2xl font-bold mb-2">Jonas Salk</h3>
-                    <p class="text-sm opacity-90">Vaccine Success, 1955</p>
-                </div>
-                <div class="p-6">
-                    <h4 class="font-bold text-gray-900 mb-2">The Patent Decision</h4>
-                    <p class="text-sm text-gray-700 mb-4">
-                        Patent the vaccine and become wealthy, or give it to humanity?
-                    </p>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600">Cost: $7 billion</span>
-                        <span class="font-semibold text-purple-600">Generativity vs. Wealth</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Carson Card -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow cursor-pointer" onclick="loadCase('carson')">
-                <div class="gradient-carson p-6 text-white">
-                    <h3 class="text-2xl font-bold mb-2">Rachel Carson</h3>
-                    <p class="text-sm opacity-90">Terminal Illness, 1962</p>
-                </div>
-                <div class="p-6">
-                    <h4 class="font-bold text-gray-900 mb-2">The Silent Spring Decision</h4>
-                    <p class="text-sm text-gray-700 mb-4">
-                        Fight chemical industry while dying of cancer, or rest peacefully?
-                    </p>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600">Life expectancy: 2 years</span>
-                        <span class="font-semibold text-cyan-600">Legacy Over Rest</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Comparative Analysis Card -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow cursor-pointer border-2 border-indigo-300" onclick="loadCase('comparative')">
-                <div class="bg-gradient-to-r from-indigo-500 to-purple-500 p-6 text-white">
-                    <h3 class="text-2xl font-bold mb-2">Comparative Analysis</h3>
-                    <p class="text-sm opacity-90">All Cases</p>
-                </div>
-                <div class="p-6">
-                    <h4 class="font-bold text-gray-900 mb-2">Pattern Recognition</h4>
-                    <p class="text-sm text-gray-700 mb-4">
-                        Compare all cases side-by-side to identify universal thermodynamic patterns.
-                    </p>
-                    <div class="text-sm font-semibold text-indigo-600">
-                        Meta-Analysis
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <!-- Case Display Container -->
-    <div id="case-display" class="hidden"></div>
-    
+<!-- ── MAIN ── -->
+<div id="main-area">
+
+  <!-- LEFT: t0 Inputs -->
+  <aside id="left-panel" id="t0-panel"></aside>
+
+  <!-- CENTER: canvas -->
+  <section id="canvas-wrap">
+    <canvas id="terrain-canvas"></canvas>
+    <div id="label-overlay"></div>
+    <div id="view-btns">
+      <button class="view-btn" data-view="iso">Isometric</button>
+      <button class="view-btn" data-view="top">Top View</button>
+      <button class="view-btn" data-view="north">North Face</button>
+      <button class="view-btn" data-view="east">East Face</button>
+      <button class="view-btn" data-view="south">South Face</button>
+      <button class="view-btn" data-view="west">West Face</button>
+    </div>
+    <div id="compass">N↑</div>
+  </section>
+
+  <!-- RIGHT: Controls -->
+  <aside id="right-panel">
+
+    <div class="rp-section">
+      <div class="rp-label">Color Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-color">Color</button>
+        <button class="mode-btn" id="mode-grey">Greyscale</button>
+      </div>
+      <div class="rp-label">Height Scale</div>
+      <div class="rp-slider-row">
+        <span class="rp-slider-label">Exaggeration</span>
+        <input type="range" class="rp-slider" id="exag-slider" min="5" max="30" value="12" step="1"
+          style="--pct:44%">
+        <span class="rp-val" id="exag-val">1.2×</span>
+      </div>
+      <div class="rp-label" style="margin-top:.5rem">Sigma (spread)</div>
+      <div class="rp-slider-row">
+        <span class="rp-slider-label">Peak width</span>
+        <input type="range" class="rp-slider" id="sigma-slider" min="3" max="15" value="8" step="1"
+          style="--pct:45%">
+        <span class="rp-val" id="sigma-val">0.8</span>
+      </div>
+    </div>
+
+    <div class="rp-section">
+      <div class="rp-label">Factor Legend</div>
+      <div id="legend-rows"></div>
+    </div>
+
+    <div class="rp-section">
+      <div class="rp-label">Factor Scores (t=0)</div>
+      <div id="score-bars"></div>
+    </div>
+
+    <div class="rp-section" style="border-bottom:none">
+      <button class="full-btn accent" id="btn-copy-to-tn">Copy t=0 → t=n</button>
+      <button class="full-btn" id="btn-swap">Swap t=0 ↔ t=n</button>
+    </div>
+
+  </aside>
 </div>
 
+<!-- ── ANIMATION BAR ── -->
+<div id="anim-bar">
+  <div id="anim-controls">
+    <span style="font-size:.68rem;color:var(--text-dim)">ANIMATION</span>
+    <button class="anim-btn" id="btn-anim-play">▶ Play</button>
+    <button class="anim-btn" id="btn-anim-reset">■ Reset</button>
+    <div id="anim-progress-wrap">
+      <div id="anim-progress-fill"></div>
+      <div id="anim-progress-thumb"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <span style="font-size:.65rem;color:var(--text-dim)">Duration</span>
+      <input type="range" class="rp-slider" id="dur-slider" min="1" max="20" value="6" step="1"
+        style="width:70px;--pct:26%">
+      <span class="rp-val" id="dur-val">6s</span>
+    </div>
+    <button class="anim-btn" id="tn-setup-toggle">t=n Setup ▾</button>
+  </div>
+  <div id="anim-labels">
+    <span>t = 0 (current PRF)</span>
+    <span id="anim-pct-label">0%</span>
+    <span>t = n (target PRF)</span>
+  </div>
+  <div id="tn-panel">
+    <div class="tn-grid" id="tn-grid"></div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ==========================================
-// HISTORICAL CASE DATA
-// ==========================================
+'use strict';
 
-const historicalCases = {
-    mandela: {
-        name: "Nelson Mandela",
-        year: 1964,
-        age: 46,
-        location: "Robben Island Prison, South Africa",
-        context: "Sentenced to life imprisonment for opposing apartheid. Confined to 7×7 foot cell with hard labor in limestone quarry. Expected to remain imprisoned for life with no release date.",
-        
-        decision: {
-            title: "The BioBond Decision: Daily Exercise",
-            description: "Despite extreme exhaustion from hard labor, minimal nutrition, and guard mockery, should Mandela implement a rigorous daily exercise routine?",
-            pathA: {
-                name: "No Exercise (Conserve Energy)",
-                rationale: "Already exhausted from quarry work. Exercise seems pointless—won't get him released. Better to rest and conserve limited energy.",
-                expectedBy: "Most prisoners, guards who mock those who exercise"
-            },
-            pathB: {
-                name: "Daily Exercise (BioBond Protocol)",
-                rationale: "Exercise maintains somatic coherence, preserves agency, structures time, creates metabolic capacity despite conditions.",
-                expectedBy: "Mandela himself, based on understanding that prison is designed to break the spirit"
-            }
-        },
-        
-        baselineScores: {
-            // ATCF
-            A: 85, // Autobiographical - very strong identity
-            T: 42, // Temporal - critically depleted
-            C: 78, // Prospective - clear long-term vision
-            F: 82, // Meta-constructive - high adaptability
-            
-            // Derived
-            Fire: 80,
-            Ice: 85,
-            FireIceRatio: 0.94,
-            
-            // MDI components
-            MDI: 92,
-            MDI_Complexity: 95,
-            MDI_Horizon: 95,
-            MDI_Integration: 90,
-            MDI_Authenticity: 90,
-            MDI_Generativity: 90,
-            
-            // Other dimensions
-            RCS: 88,
-            AF: 85,
-            LQI: 38,
-            CPR: 72,
-            
-            Overall: 75
-        },
-        
-        timeline: [
-            {
-                month: 0,
-                event: "Decision Point",
-                description: "Begin daily exercise or conserve energy?",
-                critical: true
-            },
-            {
-                month: 3,
-                event: "Initial Phase",
-                description: "Observable changes in physical and mental state"
-            },
-            {
-                month: 12,
-                event: "First Year Assessment",
-                description: "Pattern established, long-term trajectory emerging"
-            },
-            {
-                month: 60,
-                event: "Five Year Mark",
-                description: "Identity coherence tested under prolonged stress"
-            },
-            {
-                month: 324,
-                event: "Release (1990)",
-                description: "After 27 years, capability to lead tested immediately"
-            }
-        ],
-        
-        actualOutcome: {
-            path: "B",
-            description: "Mandela exercised daily for 27 years. Emerged physically and mentally capable of leading South Africa's transition to democracy. Became President at age 75.",
-            keyQuote: "Prison is designed to break one's spirit and destroy one's resolve... I attempted to follow a program of exercise that would keep me fit.",
-            metrics: {
-                survivalYears: 27,
-                postReleaseProductivity: "Exceptional - led nation",
-                identityCoherence: "Total - became MORE himself",
-                legacyImpact: "Prevented civil war, peaceful transition"
-            }
-        },
-        
-        color: "green"
-    },
-    
-    boisjoly: {
-        name: "Roger Boisjoly",
-        year: 1986,
-        age: 49,
-        location: "Post-Challenger Disaster, Morton Thiokol",
-        context: "Senior engineer who fought the Challenger launch and was overruled. Seven astronauts died. Rogers Commission investigating. Management wants him to stay quiet.",
-        
-        decision: {
-            title: "The Testimony Decision: Full Truth",
-            description: "Should Boisjoly give full testimony about management pressure to override engineering judgment, likely ending his career?",
-            pathA: {
-                name: "Limited Testimony (Protect Career)",
-                rationale: "Stick to technical facts only. Don't expose management pressure. Preserve job, colleagues, financial security.",
-                expectedBy: "Management, colleagues, family (financial security)"
-            },
-            pathB: {
-                name: "Full Truth (Moral Courage)",
-                rationale: "Tell complete truth about management override. Accept career destruction to prevent future accidents.",
-                expectedBy: "Engineering ethics, personal integrity, future safety"
-            }
-        },
-        
-        baselineScores: {
-            A: 88,
-            T: 38, // Critically stressed post-trauma
-            C: 72,
-            F: 75,
-            
-            Fire: 73.5,
-            Ice: 88,
-            FireIceRatio: 0.835,
-            
-            MDI: 82,
-            MDI_Complexity: 75,
-            MDI_Horizon: 80,
-            MDI_Integration: 90,
-            MDI_Authenticity: 85,
-            MDI_Generativity: 80,
-            
-            RCS: 92,
-            AF: 68,
-            LQI: 45,
-            CPR: 78,
-            
-            Overall: 73
-        },
-        
-        timeline: [
-            {
-                month: 0,
-                event: "Decision Point",
-                description: "Rogers Commission testimony - limited or full?"
-            },
-            {
-                month: 1,
-                event: "Immediate Aftermath",
-                description: "Career and social consequences begin"
-            },
-            {
-                month: 6,
-                event: "Critical Juncture",
-                description: "Will identity fracture or reorganize?"
-            },
-            {
-                month: 12,
-                event: "One Year Post-Testimony",
-                description: "New morphogenetic target emerges or despair sets in"
-            },
-            {
-                month: 60,
-                event: "Five Year Assessment",
-                description: "Long-term identity and legacy trajectory"
-            }
-        ],
-        
-        actualOutcome: {
-            path: "B",
-            description: "Boisjoly gave full testimony. Was ostracized by colleagues, forced to resign, experienced severe depression. But found new purpose teaching engineering ethics. Became one of the most important voices in engineering professional responsibility.",
-            keyQuote: "I have been asked by some if I would testify again if I knew in advance of the potential consequences... My answer is always an immediate 'yes.'",
-            metrics: {
-                careerCost: "Total - forced resignation",
-                socialCost: "Severe - ostracized by colleagues",
-                identityOutcome: "Strengthened - became MORE himself",
-                legacyImpact: "Massive - changed engineering ethics education globally"
-            }
-        },
-        
-        color: "red"
-    },
-    
-    salk: {
-        name: "Jonas Salk",
-        year: 1955,
-        age: 40,
-        location: "Post-Vaccine Success, United States",
-        context: "Polio vaccine proven successful in largest medical trial in history. Could patent and become wealthiest scientist ever, or give it to humanity.",
-        
-        decision: {
-            title: "The Patent Decision: Generativity vs. Wealth",
-            description: "Patent the polio vaccine (worth ~$7 billion) or give it away to save maximum lives worldwide?",
-            pathA: {
-                name: "Patent (Financial Security)",
-                rationale: "Become wealthy, secure family's future, fund more research. Still saves hundreds of thousands of lives in wealthy nations.",
-                expectedBy: "University administrators, many colleagues, conventional wisdom"
-            },
-            pathB: {
-                name: "No Patent (Maximum Lives Saved)",
-                rationale: "Enable global distribution at minimal cost. Save millions more lives including in poor nations. 'Could you patent the sun?'",
-                expectedBy: "Public health advocates, Salk's own values"
-            }
-        },
-        
-        baselineScores: {
-            A: 82,
-            T: 88,
-            C: 90,
-            F: 78,
-            
-            Fire: 84,
-            Ice: 82,
-            FireIceRatio: 1.02,
-            
-            MDI: 95,
-            MDI_Complexity: 92,
-            MDI_Horizon: 98,
-            MDI_Integration: 88,
-            MDI_Authenticity: 95,
-            MDI_Generativity: 100,
-            
-            RCS: 90,
-            AF: 75,
-            LQI: 78,
-            CPR: 92,
-            
-            Overall: 86
-        },
-        
-        timeline: [
-            {
-                month: 0,
-                event: "Decision Point",
-                description: "Vaccine successful - patent or give away?"
-            },
-            {
-                month: 12,
-                event: "One Year Post-Decision",
-                description: "Global distribution beginning, identity shift observable"
-            },
-            {
-                month: 60,
-                event: "Five Year Mark",
-                description: "Salk Institute founded, legacy path crystallizing"
-            },
-            {
-                month: 180,
-                event: "15 Years Later",
-                description: "Full legacy impact visible, lives saved measurable"
-            },
-            {
-                month: 360,
-                event: "30 Years Later (1985)",
-                description: "Polio nearly eradicated globally"
-            }
-        ],
-        
-        actualOutcome: {
-            path: "B",
-            description: "Salk gave vaccine away. Forewent billions. Founded Salk Institute (1960). Continued productive research for decades. Became moral icon. Estimated 10-16 million lives saved globally.",
-            keyQuote: "Could you patent the sun?",
-            metrics: {
-                financialCost: "$7 billion foregone",
-                livesSaved: "10-16 million (vs ~1M if patented)",
-                identityOutcome: "Strengthened - perfect alignment",
-                legacyImpact: "Geometric - model for open science movement"
-            }
-        },
-        
-        color: "purple"
-    },
-    
-    carson: {
-        name: "Rachel Carson",
-        year: 1962,
-        age: 54,
-        location: "Terminal Breast Cancer, United States",
-        context: "Dying of breast cancer, ~2 years to live. Chemical industry launching massive attacks calling her 'hysterical woman.' Could rest peacefully or fight to publish Silent Spring.",
-        
-        decision: {
-            title: "The Silent Spring Decision: Legacy Over Rest",
-            description: "Use final metabolic energy to write/defend book exposing pesticide industry, enduring attacks while dying?",
-            pathA: {
-                name: "Rest Peacefully (Self-Care)",
-                rationale: "Dying anyway. Enjoy remaining time with family and nature. Avoid stress of industry attacks.",
-                expectedBy: "Doctors, family who love her"
-            },
-            pathB: {
-                name: "Fight While Dying (Legacy)",
-                rationale: "Final chance to create CIB that will outlive you. Endure attacks to save future generations from pesticides.",
-                expectedBy: "Environmental movement, Carson's own mission"
-            }
-        },
-        
-        baselineScores: {
-            A: 90,
-            T: 25, // Critically low - dying
-            C: 95, // Extremely high - vision extends beyond death
-            F: 65,
-            
-            Fire: 80,
-            Ice: 90,
-            FireIceRatio: 0.89,
-            
-            MDI: 98,
-            MDI_Complexity: 95,
-            MDI_Horizon: 100, // Transgenerational
-            MDI_Integration: 95,
-            MDI_Authenticity: 98,
-            MDI_Generativity: 100,
-            
-            RCS: 88,
-            AF: 62,
-            LQI: 30, // Terminal illness
-            CPR: 95, // Final burst
-            
-            Overall: 72 // High meaning despite physical crisis
-        },
-        
-        timeline: [
-            {
-                month: 0,
-                event: "Decision Point",
-                description: "Write/defend book or rest peacefully?"
-            },
-            {
-                month: 6,
-                event: "Silent Spring Published",
-                description: "Massive industry attacks begin"
-            },
-            {
-                month: 12,
-                event: "One Year - Still Fighting",
-                description: "Defending book while health deteriorates"
-            },
-            {
-                month: 24,
-                event: "Death (1964)",
-                description: "Dies before seeing EPA created"
-            },
-            {
-                month: 96,
-                event: "8 Years Later (1970)",
-                description: "EPA created, DDT banned - her CIB wins"
-            }
-        },
-        
-        actualOutcome: {
-            path: "B",
-            description: "Carson wrote and defended Silent Spring while dying. Endured vicious attacks. Died in 1964. EPA created 1970. Modern environmental movement credits her as founder. Her CIB compounds forever.",
-            keyQuote: "We stand now where two roads diverge... The road we have long been traveling is deceptively easy... The other fork of the road is the one less traveled... but our only chance to reach a destination that assures the preservation of the earth.",
-            metrics: {
-                personalCost: "Died in pain, under attack",
-                restForegone: "All remaining peace",
-                identityOutcome: "Total alignment - died as herself",
-                legacyImpact: "Infinite - environmental movement founded"
-            }
-        },
-        
-        color: "cyan"
-    }
-};
+// ═══════════════════════════════════════════════════════════════
+// PRF-22 INSTRUMENT DATA
+// Items adapted from MFQ, EPQ, PVQ, DIT, WVS, ATCF frameworks.
+// * = approximate (replace with validated PRF-22 wording when finalized)
+// ═══════════════════════════════════════════════════════════════
+const ITEMS = [
+  {id:1,fid:'A',short:'Care',
+   q:'It is important to interrupt what\'s happening to comfort the person who is hurt.',
+   scenario:'At a party, someone makes a cutting remark. You see the target become visibly upset and withdraw.',
+   reversed:false},
+  {id:2,fid:'A',short:'Fairness',
+   q:'You should notify the employer and return the extra money so things are fair.',
+   scenario:'You learn your employer accidentally overpaid you this month, and no one else noticed.',
+   reversed:false},
+  {id:3,fid:'B',short:'Loyalty',
+   q:'You should defend your friend publicly to show solidarity.',
+   scenario:'A close friend is being publicly criticized online in a way you think is unfair. Defending them might draw negative attention to you.',
+   reversed:false},
+  {id:4,fid:'B',short:'Authority',
+   q:'People should follow the leader\'s procedure out of respect for the role and hierarchy.',
+   scenario:'In a volunteer organization, a respected leader asks everyone to follow a formal procedure that feels unnecessary but maintains order.',
+   reversed:false},
+  {id:5,fid:'B',short:'Purity',
+   q:'When something feels disgusting, that reaction is an important moral signal about what should or should not be allowed in shared spaces.',
+   scenario:'A friend decorates their apartment in a way you find disgusting, but they genuinely love it and feel it expresses them.',
+   reversed:false},
+  {id:6,fid:'C',short:'Idealism-1',
+   q:'There are absolute moral rules that should always be followed, regardless of the consequences.',
+   scenario:'* Based on EPQ Idealism construct.',
+   reversed:false},
+  {id:7,fid:'C',short:'Idealism-2',
+   q:'Harming an innocent person is always morally wrong, no matter what benefits might result for others.',
+   scenario:'* Based on EPQ Idealism construct.',
+   reversed:false},
+  {id:8,fid:'C',short:'Relativism',
+   q:'Whether an action is right or wrong depends on the situation and cultural context, not on universal rules.',
+   scenario:'* Based on EPQ Relativism construct.',
+   reversed:true},
+  {id:9,fid:'D',short:'Conformity',
+   q:'Following established rules and behaving properly, even when no one is watching, is very important.',
+   scenario:'* Based on Schwartz PVQ conformity/security value.',
+   reversed:false},
+  {id:10,fid:'D',short:'Achievement',
+   q:'Personal success and receiving recognition for one\'s accomplishments is an important life goal.',
+   scenario:'* Based on Schwartz PVQ achievement/power value.',
+   reversed:false},
+  {id:11,fid:'D',short:'Tradition-1',
+   q:'Maintaining and honoring the traditions and customs of one\'s family or culture is important.',
+   scenario:'* Based on Schwartz PVQ tradition/conservation value.',
+   reversed:false},
+  {id:12,fid:'D',short:'Security',
+   q:'The world is safer and better when people respect established social norms and authorities.',
+   scenario:'* Based on Schwartz PVQ security/conservation value.',
+   reversed:false},
+  {id:13,fid:'D',short:'Openness',
+   q:'I actively seek out new perspectives and experiences, even when they challenge my existing beliefs.',
+   scenario:'* Based on Schwartz PVQ openness-to-change value.',
+   reversed:false},
+  {id:14,fid:'E',short:'DIT-Heinz',
+   q:'It is morally wrong to steal the medicine, even if it would save the spouse\'s life.',
+   scenario:'[Heinz dilemma] A man cannot afford life-saving medicine for his dying spouse. The druggist refuses to lower the price.',
+   reversed:true},
+  {id:15,fid:'E',short:'DIT-Fairness',
+   q:'It is acceptable to sacrifice fairness (not hiring the best candidate) in order to keep social peace.',
+   scenario:'A company can hire the most qualified candidate, but some coworkers hold prejudiced views and might react badly.',
+   reversed:true},
+  {id:16,fid:'E',short:'DIT-Protest',
+   q:'Sometimes it is necessary to break rules or laws in order to protest injustice.',
+   scenario:'A community believes a new policy is unjust. Peaceful protest is ignored; a nonviolent sit-in that breaks minor laws could force attention.',
+   reversed:false},
+  {id:17,fid:'F',short:'WVS-Obedience',
+   q:'It is more important for children to learn obedience and respect for authority than to learn independence and critical thinking.',
+   scenario:'You are asked what qualities matter most to teach children.',
+   reversed:false},
+  {id:18,fid:'F',short:'WVS-Religion',
+   q:'Religious beliefs should carry as much weight as scientific reasoning in public decisions.',
+   scenario:'A public decision could be justified by religious doctrine or by secular evidence-based reasoning.',
+   reversed:false},
+  {id:19,fid:'F',short:'WVS-Tolerance',
+   q:'People should accept someone\'s open homosexuality even if they personally disagree.',
+   scenario:'A close acquaintance is openly gay. Some people in your broader community disapprove.',
+   reversed:true},
+  {id:20,fid:'G',short:'ATCF-Agency',
+   q:'This person should refuse the request, even if they might be fired.',
+   scenario:'A single parent works two jobs, barely making rent. Their boss asks for unpaid overtime, implying they may be fired if they refuse.',
+   reversed:false},
+  {id:21,fid:'G',short:'ATCF-Depletion',
+   q:'They are just as morally responsible as they would be if they were well-rested.',
+   scenario:'A student is severely sleep-deprived after multiple nights of studying and makes an impulsive unethical choice during an exam.',
+   reversed:true},
+  {id:22,fid:'G',short:'ATCF-System',
+   q:'Primary responsibility lies with leadership and systemic incentives that produced the policy, not the front-line worker who executed it.',
+   scenario:'A harmful organizational policy causes damage. A front-line worker executed the policy; leadership designed the system that required it.',
+   reversed:false},
+];
 
-// ==========================================
-// SIMULATION ENGINE
-// ==========================================
+// ═══════════════════════════════════════════════════════════════
+// FACTOR DEFINITIONS
+// Hexagonal arrangement: G(center), A(N), D(NE), F(SE), B(S), C(SW), E(NW)
+// ═══════════════════════════════════════════════════════════════
+const FACTORS = [
+  {id:'A',name:'Individualizing',abbr:'INDV',
+   desc:'Care & Fairness — Harm prevention, equitable treatment',
+   items:[1,2], peakX:0.0, peakZ:-1.45,
+   rgb:[0.15,0.40,0.95], grey:0.70, hex:'#2563eb', bgRgba:'rgba(37,99,235,0.80)'},
+  {id:'B',name:'Binding',abbr:'BIND',
+   desc:'Loyalty, Authority, Purity — Group cohesion, social order',
+   items:[3,4,5], peakX:0.0, peakZ:1.45,
+   rgb:[0.88,0.16,0.16], grey:0.42, hex:'#dc2626', bgRgba:'rgba(220,38,38,0.80)'},
+  {id:'C',name:'Ethical Ideology',abbr:'IDEO',
+   desc:'Idealism & Relativism (reversed) — Moral universalism',
+   items:[6,7,8], peakX:-1.26, peakZ:0.72,
+   rgb:[0.49,0.23,0.93], grey:0.36, hex:'#7c3aed', bgRgba:'rgba(124,58,237,0.80)'},
+  {id:'D',name:'Values',abbr:'VALS',
+   desc:'Schwartz PVQ — Conservation vs. Openness profile',
+   items:[9,10,11,12,13], peakX:1.26, peakZ:-0.72,
+   rgb:[0.86,0.48,0.04], grey:0.58, hex:'#d97706', bgRgba:'rgba(217,119,6,0.80)'},
+  {id:'E',name:'Principled Reasoning',abbr:'PRCP',
+   desc:'DIT-inspired — Post-conventional moral development',
+   items:[14,15,16], peakX:-1.26, peakZ:-0.72,
+   rgb:[0.02,0.60,0.42], grey:0.48, hex:'#059669', bgRgba:'rgba(5,150,105,0.80)'},
+  {id:'F',name:'Cultural Orientation',abbr:'CULT',
+   desc:'WVS-aligned — Traditional vs. secular-rational axis',
+   items:[17,18,19], peakX:1.26, peakZ:0.72,
+   rgb:[0.04,0.56,0.70], grey:0.32, hex:'#0891b2', bgRgba:'rgba(8,145,178,0.80)'},
+  {id:'G',name:'ATCF Resilience',abbr:'ATCF',
+   desc:'Temporal coherence under constraint, depletion & capture',
+   items:[20,21,22], peakX:0.0, peakZ:0.0,
+   rgb:[0.06,0.47,0.43], grey:0.52, hex:'#0f766e', bgRgba:'rgba(15,118,110,0.80)'},
+];
 
-function simulateTrajectory(baselineScores, decisionParams, path, timeHorizon) {
-    const trajectory = [];
-    let state = {
-        month: 0,
-        A: baselineScores.A,
-        T: baselineScores.T,
-        C: baselineScores.C,
-        F: baselineScores.F,
-        MDI: baselineScores.MDI,
-        RCS: baselineScores.RCS,
-        AF: baselineScores.AF,
-        LQI: baselineScores.LQI,
-        CPR: baselineScores.CPR,
-        Fire: baselineScores.Fire,
-        Ice: baselineScores.Ice,
-        FireIceRatio: baselineScores.FireIceRatio
-    };
-    
-    // Path-specific modifiers
-    const modifiers = path === 'A' ? decisionParams.pathAModifiers : decisionParams.pathBModifiers;
-    
-    for (let month = 0; month <= timeHorizon; month++) {
-        // Apply time-dependent changes based on path
-        if (month > 0) {
-            // Apply modifiers
-            Object.keys(modifiers).forEach(key => {
-                const modifier = modifiers[key];
-                if (typeof modifier === 'function') {
-                    state[key] = modifier(state[key], month, state);
-                } else if (typeof modifier === 'number') {
-                    state[key] = Math.max(0, Math.min(100, state[key] + (modifier / timeHorizon)));
-                }
-            });
-            
-            // Recalculate derived metrics
-            state.Fire = (state.C + state.F) / 2;
-            state.Ice = state.A;
-            state.FireIceRatio = state.Ice > 0 ? state.Fire / state.Ice : 0;
-        }
-        
-        trajectory.push({
-            month,
-            ...JSON.parse(JSON.stringify(state))
-        });
-    }
-    
-    return trajectory;
-}
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+const t0Values = new Array(22).fill(3);
+const tnValues = new Array(22).fill(3);
+let greyMode = false;
+let exagScale = 1.2;
+let sigmaPeak = 0.80;
+let animating = false;
+let animProgress = 0;
+let animDuration = 6; // seconds
+let animLastTime = null;
 
-// ==========================================
-// CASE-SPECIFIC SIMULATION PARAMETERS
-// ==========================================
-
-const simulationParameters = {
-    mandela: {
-        timeHorizon: 324, // 27 years
-        pathAModifiers: {
-            // No exercise - gradual degradation
-            T: (val, month) => Math.max(20, val - 0.05 * month),
-            F: (val, month) => month < 12 ? val - 0.1 * month : Math.max(40, val - 0.15 * (month - 12)),
-            C: (val, month) => month < 24 ? val : Math.max(50, val - 0.08 * (month - 24)),
-            A: (val, month) => month < 36 ? val : Math.max(50, val - 0.1 * (month - 36)),
-            LQI: (val, month) => Math.max(15, val - 0.05 * month)
-        },
-        pathBModifiers: {
-            // Exercise - stabilization then improvement
-            T: (val, month) => {
-                if (month < 3) return Math.max(38, val - 0.5);
-                if (month < 12) return Math.min(60, val + 0.8);
-                return Math.min(65, val + 0.02);
-            },
-            LQI: (val, month) => {
-                if (month < 6) return Math.min(50, val + 1.5);
-                return Math.min(55, val + 0.05);
-            },
-            F: (val, month) => Math.min(85, val + 0.01),
-            CPR: (val, month) => Math.min(82, val + 0.02)
-        }
-    },
-    
-    boisjoly: {
-        timeHorizon: 60, // 5 years critical period
-        pathAModifiers: {
-            // Limited testimony - moral injury
-            T: -5,
-            A: (val, month) => month < 6 ? val - 1 : Math.max(45, val - 1.5),
-            MDI: (val, month) => month < 12 ? val - 1.2 : Math.max(40, val - 1),
-            LQI: (val, month) => Math.max(25, val - 0.4 * month),
-            F: (val, month) => Math.max(40, val - 0.3 * month)
-        },
-        pathBModifiers: {
-            // Full truth - crisis then recovery
-            T: (val, month) => {
-                if (month < 2) return Math.max(25, val - 8);
-                if (month < 12) return Math.min(50, val + 1.5);
-                return Math.min(65, val + 0.5);
-            },
-            A: (val, month) => month < 6 ? val + 0.5 : Math.min(95, val + 0.3),
-            C: (val, month) => month < 6 ? val + 2 : Math.min(88, val + 0.4),
-            CPR: (val, month) => month < 12 ? val + 0.5 : Math.min(92, val + 0.2),
-            LQI: (val, month) => {
-                if (month < 6) return Math.max(25, val - 2);
-                if (month < 24) return Math.min(65, val + 1);
-                return Math.min(72, val + 0.3);
-            }
-        }
-    },
-    
-    salk: {
-        timeHorizon: 360, // 30 years
-        pathAModifiers: {
-            // Patent - wealth but moral injury
-            T: +10,
-            MDI: (val, month) => month < 12 ? val : Math.max(60, val - 0.15 * (month / 12)),
-            A: (val, month) => month < 24 ? val - 0.4 : Math.max(50, val - 0.5),
-            CPR: (val, month) => Math.max(45, val - 0.15 * (month / 12)),
-            LQI: (val, month) => {
-                if (month < 12) return Math.min(88, val + 0.5);
-                return Math.max(50, val - 0.1 * (month / 12));
-            }
-        },
-        pathBModifiers: {
-            // No patent - perfect alignment
-            A: (val, month) => Math.min(95, val + 0.02),
-            C: (val, month) => Math.min(95, val + 0.015),
-            CPR: (val, month) => Math.min(100, val + 0.025),
-            MDI: (val, month) => Math.min(98, val + 0.01),
-            Fire: (val, month) => Math.min(95, val + 0.02)
-        }
-    },
-    
-    carson: {
-        timeHorizon: 24, // 2 years until death
-        pathAModifiers: {
-            // Rest - physical comfort, identity erosion
-            T: (val, month) => Math.max(15, val - 0.3 * month),
-            LQI: (val, month) => Math.min(45, val + 0.5 * month),
-            C: (val, month) => Math.max(60, val - 1.5 * month),
-            CPR: (val, month) => Math.max(20, val - 3 * month)
-        },
-        pathBModifiers: {
-            // Fight - physical decline, identity crystallization
-            T: (val, month) => Math.max(10, val - 0.6 * month),
-            A: (val, month) => Math.min(98, val + 0.3 * month),
-            C: (val, month) => Math.min(100, val + 0.2 * month),
-            CPR: (val, month) => Math.min(100, val + 0.4 * month),
-            MDI: (val, month) => Math.min(100, val + 0.15 * month),
-            LQI: (val, month) => Math.max(15, val - 0.6 * month)
-        }
-    }
-};
-
-// ==========================================
-// UI CONTROL FUNCTIONS
-// ==========================================
-
-function showCaseSelection() {
-    document.getElementById('intro').classList.add('hidden');
-    document.getElementById('case-selection').classList.remove('hidden');
-}
-
-let currentCase = null;
-let simulationResults = null;
-
-function loadCase(caseId) {
-    if (caseId === 'comparative') {
-        displayComparativeAnalysis();
-        return;
-    }
-    
-    currentCase = historicalCases[caseId];
-    document.getElementById('case-selection').classList.add('hidden');
-    document.getElementById('case-display').classList.remove('hidden');
-    
-    displayCase(caseId);
-}
-
-// ==========================================
-// CASE DISPLAY
-// ==========================================
-
-function displayCase(caseId) {
-    const caseData = historicalCases[caseId];
-    const container = document.getElementById('case-display');
-    
-    const colorClass = `gradient-${caseData.color}`;
-    
-    container.innerHTML = `
-        <div class="space-y-8">
-            <!-- Header -->
-            <div class="flex items-center gap-4 mb-6">
-                <button onclick="backToSelection()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                    ← Back to Cases
-                </button>
-                <h2 class="text-3xl font-bold text-gray-900">${caseData.name} - ${caseData.year}</h2>
-            </div>
-            
-            <!-- Case Overview -->
-            <section class="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div class="${colorClass} p-8 text-white">
-                    <h3 class="text-2xl font-bold mb-2">${caseData.decision.title}</h3>
-                    <div class="grid md:grid-cols-2 gap-4 mt-4 text-sm">
-                        <div>
-                            <span class="opacity-75">Age:</span> <strong>${caseData.age}</strong>
-                        </div>
-                        <div>
-                            <span class="opacity-75">Location:</span> <strong>${caseData.location}</strong>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="p-8">
-                    <h4 class="font-bold text-gray-900 mb-3">Historical Context:</h4>
-                    <p class="text-gray-700 mb-6">${caseData.context}</p>
-                    
-                    <h4 class="font-bold text-gray-900 mb-3">The Critical Decision:</h4>
-                    <p class="text-gray-700 mb-4">${caseData.decision.description}</p>
-                </div>
-            </section>
-            
-            <!-- Assessment Scores -->
-            <section class="bg-white rounded-2xl shadow-xl p-8">
-                <h3 class="text-2xl font-bold text-gray-900 mb-6">Baseline Assessment Scores (${caseData.year})</h3>
-                
-                <div class="grid md:grid-cols-2 gap-8 mb-8">
-                    <div>
-                        <h4 class="font-bold text-gray-900 mb-4">ATCF Components:</h4>
-                        ${generateScoreBar('A - Autobiographical (Ice)', caseData.baselineScores.A, 'blue')}
-                        ${generateScoreBar('T - Temporal (Flux)', caseData.baselineScores.T, 'green')}
-                        ${generateScoreBar('C - Prospective (Fire)', caseData.baselineScores.C, 'orange')}
-                        ${generateScoreBar('F - Meta-Constructive', caseData.baselineScores.F, 'purple')}
-                        
-                        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                            <div class="text-sm text-gray-700 space-y-1">
-                                <div class="flex justify-between">
-                                    <span>Fire/Ice Ratio:</span>
-                                    <strong class="${caseData.baselineScores.FireIceRatio >= 0.70 ? 'metric-good' : 'metric-critical'}">
-                                        ${caseData.baselineScores.FireIceRatio.toFixed(2)}
-                                    </strong>
-                                </div>
-                                <div class="text-xs text-gray-500">
-                                    ${caseData.baselineScores.FireIceRatio >= 0.70 ? '✓ Sustainable' : '⚠️ Unsustainable'}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <h4 class="font-bold text-gray-900 mb-4">Five Dimensions:</h4>
-                        ${generateScoreBar('Meaning Depth (MDI)', caseData.baselineScores.MDI, 'purple')}
-                        ${generateScoreBar('Rational Capacity (RCS)', caseData.baselineScores.RCS, 'blue')}
-                        ${generateScoreBar('Annealing Fluency (AF)', caseData.baselineScores.AF, 'green')}
-                        ${generateScoreBar('Life Quality (LQI)', caseData.baselineScores.LQI, 'orange')}
-                        ${generateScoreBar('CIB Production (CPR)', caseData.baselineScores.CPR, 'red')}
-                        
-                        <div class="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200">
-                            <div class="text-sm text-gray-700">
-                                <div class="flex justify-between items-center">
-                                    <span>Overall Flourishing:</span>
-                                    <strong class="text-3xl ${getScoreColor(caseData.baselineScores.Overall)}">
-                                        ${caseData.baselineScores.Overall}
-                                    </strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                    <p class="text-sm text-yellow-900">
-                        <strong>Key Vulnerabilities:</strong> ${identifyVulnerabilities(caseData.baselineScores)}
-                    </p>
-                </div>
-            </section>
-            
-            <!-- Decision Paths -->
-            <section class="bg-white rounded-2xl shadow-xl p-8">
-                <h3 class="text-2xl font-bold text-gray-900 mb-6">Two Possible Paths</h3>
-                
-                <div class="grid md:grid-cols-2 gap-6 mb-8">
-                    <div class="path-a border-4 rounded-xl p-6">
-                        <h4 class="text-xl font-bold text-red-900 mb-3">PATH A: ${caseData.decision.pathA.name}</h4>
-                        <p class="text-sm text-gray-700 mb-4">${caseData.decision.pathA.rationale}</p>
-                        <div class="text-xs text-gray-600">
-                            <strong>Expected by:</strong> ${caseData.decision.pathA.expectedBy}
-                        </div>
-                    </div>
-                    
-                    <div class="path-b border-4 rounded-xl p-6">
-                        <h4 class="text-xl font-bold text-green-900 mb-3">PATH B: ${caseData.decision.pathB.name}</h4>
-                        <p class="text-sm text-gray-700 mb-4">${caseData.decision.pathB.rationale}</p>
-                        <div class="text-xs text-gray-600">
-                            <strong>Expected by:</strong> ${caseData.decision.pathB.expectedBy}
-                        </div>
-                    </div>
-                </div>
-                
-                <button onclick="runSimulation('${caseId}')" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold text-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg">
-                    Run Thermodynamic Simulation
-                </button>
-            </section>
-            
-            <!-- Simulation Results (will be populated) -->
-            <div id="simulation-results"></div>
-            
-            <!-- Actual Outcome (initially hidden) -->
-            <div id="actual-outcome" class="hidden"></div>
-        </div>
-    `;
-}
-
-function generateScoreBar(label, score, color) {
-    const colorClass = getScoreColor(score);
-    const widthPercent = score;
-    
-    return `
-        <div class="mb-4">
-            <div class="flex justify-between text-sm text-gray-700 mb-1">
-                <span>${label}</span>
-                <strong class="${colorClass}">${score}</strong>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-3">
-                <div class="bg-${color}-500 h-3 rounded-full transition-all" style="width: ${widthPercent}%"></div>
-            </div>
-        </div>
-    `;
-}
-
-function getScoreColor(score) {
-    if (score >= 70) return 'metric-excellent';
-    if (score >= 55) return 'metric-good';
-    if (score >= 40) return 'metric-warning';
-    return 'metric-critical';
-}
-
-function identifyVulnerabilities(scores) {
-    const vulnerabilities = [];
-    
-    if (scores.T < 45) vulnerabilities.push(`Critical metabolic depletion (T=${scores.T})`);
-    if (scores.LQI < 45) vulnerabilities.push(`Life quality unsustainable (LQI=${scores.LQI})`);
-    if (scores.FireIceRatio < 0.70) vulnerabilities.push(`Fire/Ice ratio below sustainability threshold`);
-    if (scores.C < 50) vulnerabilities.push(`Future horizon collapsed (C=${scores.C})`);
-    
-    return vulnerabilities.length > 0 ? vulnerabilities.join('; ') : 'No critical vulnerabilities detected';
-}
-
-// ==========================================
-// SIMULATION EXECUTION
-// ==========================================
-
-function runSimulation(caseId) {
-    const caseData = historicalCases[caseId];
-    const params = simulationParameters[caseId];
-    
-    // Run both paths
-    const trajectoryA = simulateTrajectory(
-        caseData.baselineScores,
-        params,
-        'A',
-        params.timeHorizon
-    );
-    
-    const trajectoryB = simulateTrajectory(
-        caseData.baselineScores,
-        params,
-        'B',
-        params.timeHorizon
-    );
-    
-    simulationResults = {
-        caseId,
-        trajectoryA,
-        trajectoryB,
-        actualPath: caseData.actualOutcome.path
-    };
-    
-    displaySimulationResults(caseId, trajectoryA, trajectoryB);
-    
-    // Scroll to results
-    setTimeout(() => {
-        document.getElementById('simulation-results').scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-}
-
-function displaySimulationResults(caseId, trajectoryA, trajectoryB) {
-    const container = document.getElementById('simulation-results');
-    const caseData = historicalCases[caseId];
-    
-    container.innerHTML = `
-        <section class="bg-white rounded-2xl shadow-xl p-8">
-            <h3 class="text-2xl font-bold text-gray-900 mb-6">Simulation Results: Predicted Trajectories</h3>
-            
-            <!-- Chart Selection -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Select Metric to Display:</label>
-                <select id="metric-selector" onchange="updateChart('${caseId}')" class="w-full md:w-auto px-4 py-2 border-2 border-gray-300 rounded-lg">
-                    <option value="FireIceRatio">Fire/Ice Ratio (Sustainability)</option>
-                    <option value="A">A - Autobiographical Continuity</option>
-                    <option value="T">T - Temporal Integration</option>
-                    <option value="C">C - Prospective Coherence</option>
-                    <option value="F">F - Meta-Constructive</option>
-                    <option value="MDI">Meaning Depth Index</option>
-                    <option value="LQI">Life Quality Integration</option>
-                    <option value="CPR">CIB Production Rate</option>
-                </select>
-            </div>
-            
-            <!-- Chart -->
-            <div class="bg-gray-50 rounded-xl p-6 mb-8">
-                <canvas id="trajectory-chart" height="100"></canvas>
-            </div>
-            
-            <!-- Timeline Comparison -->
-            <div class="grid md:grid-cols-2 gap-6 mb-8">
-                <div class="path-a border-4 rounded-xl p-6">
-                    <h4 class="text-xl font-bold text-red-900 mb-4">PATH A: ${caseData.decision.pathA.name}</h4>
-                    ${generateTimelineEvents(caseId, trajectoryA, 'A')}
-                </div>
-                
-                <div class="path-b border-4 rounded-xl p-6">
-                    <h4 class="text-xl font-bold text-green-900 mb-4">PATH B: ${caseData.decision.pathB.name}</h4>
-                    ${generateTimelineEvents(caseId, trajectoryB, 'B')}
-                </div>
-            </div>
-            
-            <!-- Key Predictions -->
-            <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border-2 border-blue-200 mb-6">
-                <h4 class="font-bold text-gray-900 mb-4">Key Predictions:</h4>
-                ${generateKeyPredictions(caseId, trajectoryA, trajectoryB)}
-            </div>
-            
-            <button onclick="revealActualOutcome('${caseId}')" class="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-xl hover:from-green-700 hover:to-emerald-700 shadow-lg">
-                Reveal What Actually Happened
-            </button>
-        </section>
-    `;
-    
-    // Render initial chart
-    setTimeout(() => updateChart(caseId), 100);
-}
-
-function generateTimelineEvents(caseId, trajectory, path) {
-    const caseData = historicalCases[caseId];
-    const keyPoints = caseData.timeline;
-    
-    return `
-        <div class="space-y-4">
-            ${keyPoints.map(point => {
-                const state = trajectory.find(t => t.month === point.month);
-                if (!state) return '';
-                
-                return `
-                    <div class="timeline-node pl-12 relative">
-                        <div class="absolute left-0 top-0 w-10 h-10 bg-${path === 'A' ? 'red' : 'green'}-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                            ${point.month}m
-                        </div>
-                        <div>
-                            <h5 class="font-bold text-gray-900">${point.event}</h5>
-                            <p class="text-sm text-gray-600 mb-2">${point.description}</p>
-                            <div class="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                    <span class="text-gray-500">Fire/Ice:</span>
-                                    <strong class="${state.FireIceRatio >= 0.70 ? 'metric-good' : 'metric-critical'}">
-                                        ${state.FireIceRatio.toFixed(2)}
-                                    </strong>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500">T-score:</span>
-                                    <strong class="${getScoreColor(state.T)}">${Math.round(state.T)}</strong>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500">A-score:</span>
-                                    <strong class="${getScoreColor(state.A)}">${Math.round(state.A)}</strong>
-                                </div>
-                                <div>
-                                    <span class="text-gray-500">LQI:</span>
-                                    <strong class="${getScoreColor(state.LQI)}">${Math.round(state.LQI)}</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-}
-
-function generateKeyPredictions(caseId, trajectoryA, trajectoryB) {
-    const finalA = trajectoryA[trajectoryA.length - 1];
-    const finalB = trajectoryB[trajectoryB.length - 1];
-    
-    const predictions = [];
-    
-    // Fire/Ice sustainability
-    if (finalA.FireIceRatio < 0.60) {
-        predictions.push(`
-            <div class="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg mb-3">
-                <strong class="text-red-900">PATH A PREDICTION:</strong>
-                <span class="text-red-800"> Thermodynamically unsustainable. Fire/Ice ratio drops to ${finalA.FireIceRatio.toFixed(2)} - identity collapse likely.</span>
-            </div>
-        `);
-    }
-    
-    if (finalB.FireIceRatio >= 0.70) {
-        predictions.push(`
-            <div class="p-4 bg-green-50 border-l-4 border-green-500 rounded-r-lg mb-3">
-                <strong class="text-green-900">PATH B PREDICTION:</strong>
-                <span class="text-green-800"> Thermodynamically sustainable. Fire/Ice ratio maintains at ${finalB.FireIceRatio.toFixed(2)} - flourishing trajectory.</span>
-            </div>
-        `);
-    }
-    
-    // Identity coherence
-    if (finalA.A < finalB.A - 10) {
-        predictions.push(`
-            <div class="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-r-lg mb-3">
-                <strong class="text-yellow-900">IDENTITY PREDICTION:</strong>
-                <span class="text-yellow-800"> Path B maintains stronger autobiographical continuity (A: ${Math.round(finalB.A)} vs ${Math.round(finalA.A)}). Path A risks identity fracture.</span>
-            </div>
-        `);
-    }
-    
-    // CIB production
-    if (finalB.CPR > finalA.CPR + 10) {
-        predictions.push(`
-            <div class="p-4 bg-purple-50 border-l-4 border-purple-500 rounded-r-lg mb-3">
-                <strong class="text-purple-900">LEGACY PREDICTION:</strong>
-                <span class="text-purple-800"> Path B produces significantly more enduring CIBs (CPR: ${Math.round(finalB.CPR)} vs ${Math.round(finalA.CPR)}). Greater transgenerational impact.</span>
-            </div>
-        `);
-    }
-    
-    return predictions.join('') || '<p class="text-gray-600">Both paths show similar long-term outcomes.</p>';
-}
-
-// ==========================================
-// CHART RENDERING
-// ==========================================
-
-let currentChart = null;
-
-function updateChart(caseId) {
-    const metric = document.getElementById('metric-selector').value;
-    
-    if (currentChart) {
-        currentChart.destroy();
-    }
-    
-    const trajectoryA = simulationResults.trajectoryA;
-    const trajectoryB = simulationResults.trajectoryB;
-    
-    const ctx = document.getElementById('trajectory-chart');
-    
-    const labels = trajectoryA.map(t => t.month);
-    const dataA = trajectoryA.map(t => t[metric]);
-    const dataB = trajectoryB.map(t => t[metric]);
-    
-    // Add sustainability threshold line for FireIceRatio
-    const annotations = metric === 'FireIceRatio' ? [{
-        type: 'line',
-        yMin: 0.70,
-        yMax: 0.70,
-        borderColor: 'rgb(16, 185, 129)',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        label: {
-            content: 'Sustainability Threshold (0.70)',
-            enabled: true,
-            position: 'end'
-        }
-    }] : [];
-    
-    currentChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Path A (Not Chosen)',
-                    data: dataA,
-                    borderColor: 'rgb(239, 68, 68)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    tension: 0.3,
-                    borderWidth: 3
-                },
-                {
-                    label: 'Path B (Chosen)',
-                    data: dataB,
-                    borderColor: 'rgb(16, 185, 129)',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    tension: 0.3,
-                    borderWidth: 3
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                },
-                title: {
-                    display: true,
-                    text: `${getMetricName(metric)} Over Time (Months)`,
-                    font: {
-                        size: 16,
-                        weight: 'bold'
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: metric !== 'FireIceRatio',
-                    max: metric === 'FireIceRatio' ? 1.5 : 100,
-                    title: {
-                        display: true,
-                        text: metric === 'FireIceRatio' ? 'Ratio' : 'Score (0-100)'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Months'
-                    }
-                }
-            }
-        }
+// ═══════════════════════════════════════════════════════════════
+// TERRAIN MATH
+// ═══════════════════════════════════════════════════════════════
+function computeFactorScores(values){
+  return FACTORS.map(f=>{
+    const itemVals = f.items.map(id=>{
+      const item = ITEMS[id-1];
+      const raw = values[id-1];
+      return item.reversed ? (6-raw) : raw;
     });
+    const mean = itemVals.reduce((a,b)=>a+b,0) / itemVals.length;
+    return (mean-1)/4; // normalize 1-5 → 0-1
+  });
 }
 
-function getMetricName(metric) {
-    const names = {
-        'FireIceRatio': 'Fire/Ice Sustainability Ratio',
-        'A': 'Autobiographical Continuity (Ice)',
-        'T': 'Temporal Integration (Flux)',
-        'C': 'Prospective Coherence (Fire)',
-        'F': 'Meta-Constructive Capacity (Annealing)',
-        'MDI': 'Meaning Depth Index',
-        'LQI': 'Life Quality Integration',
-        'CPR': 'CIB Production Rate'
-    };
-    return names[metric] || metric;
+function gaussianHeight(x, z, fx, fz, sigma){
+  const dx=x-fx, dz=z-fz;
+  return Math.exp(-(dx*dx+dz*dz)/(2*sigma*sigma));
 }
 
-// ==========================================
-// ACTUAL OUTCOME REVEAL
-// ==========================================
-
-function revealActualOutcome(caseId) {
-    const caseData = historicalCases[caseId];
-    const outcome = caseData.actualOutcome;
-    const container = document.getElementById('actual-outcome');
-    
-    container.classList.remove('hidden');
-    container.innerHTML = `
-        <section class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-8 border-4 border-green-400">
-            <div class="flex items-center gap-3 mb-6">
-                <span class="text-5xl">✓</span>
-                <h3 class="text-3xl font-bold text-gray-900">What Actually Happened</h3>
-            </div>
-            
-            <div class="bg-white rounded-xl p-6 mb-6">
-                <div class="flex items-center gap-4 mb-4">
-                    <span class="px-6 py-3 bg-green-600 text-white rounded-full font-bold text-xl">
-                        ${caseData.name} chose PATH ${outcome.path}
-                    </span>
-                </div>
-                
-                <p class="text-lg text-gray-700 mb-6">${outcome.description}</p>
-                
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6">
-                    <p class="text-blue-900 italic text-lg">
-                        "${outcome.keyQuote}"
-                    </p>
-                    <p class="text-sm text-blue-700 mt-2">— ${caseData.name}</p>
-                </div>
-                
-                <h4 class="font-bold text-gray-900 mb-4">Actual Outcomes (Historical Record):</h4>
-                <div class="grid md:grid-cols-2 gap-4">
-                    ${Object.entries(outcome.metrics).map(([key, value]) => `
-                        <div class="p-4 bg-gray-50 rounded-lg">
-                            <div class="text-sm text-gray-600 mb-1">${formatMetricName(key)}</div>
-                            <div class="font-semibold text-gray-900">${value}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-            
-            ${generateValidationAnalysis(caseId)}
-            
-            <div class="mt-6">
-                <button onclick="showDiscussionQuestions('${caseId}')" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700">
-                    Discussion Questions for Class
-                </button>
-            </div>
-        </section>
-    `;
-    
-    setTimeout(() => {
-        container.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+function computeHeight(x, z, factorScores){
+  let h = 0.0;
+  FACTORS.forEach((f,i)=>{
+    h += factorScores[i] * gaussianHeight(x,z,f.peakX,f.peakZ,sigmaPeak);
+  });
+  return h * exagScale;
 }
 
-function formatMetricName(key) {
-    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+function computeColor(x, z, factorScores, grey){
+  let wTotal = 0;
+  let r=0, g=0, b=0;
+  FACTORS.forEach((f,i)=>{
+    const w = Math.max(0, factorScores[i]) * gaussianHeight(x,z,f.peakX,f.peakZ,sigmaPeak);
+    wTotal += w;
+    if(grey){ const gv=f.grey*w; r+=gv;g+=gv;b+=gv; }
+    else{ r+=f.rgb[0]*w; g+=f.rgb[1]*w; b+=f.rgb[2]*w; }
+  });
+  if(wTotal < 1e-6){ return grey ? [0.04,0.04,0.04] : [0.04,0.06,0.10]; }
+  return [r/wTotal, g/wTotal, b/wTotal];
 }
 
-function generateValidationAnalysis(caseId) {
-    const caseData = historicalCases[caseId];
-    const outcome = caseData.actualOutcome;
-    const chosenPath = outcome.path === 'A' ? simulationResults.trajectoryA : simulationResults.trajectoryB;
-    const final = chosenPath[chosenPath.length - 1];
-    
-    // Check if predictions matched reality
-    const validations = [];
-    
-    if (outcome.path === 'B' && final.FireIceRatio >= 0.70) {
-        validations.push({
-            prediction: "Thermodynamic sustainability maintained",
-            actual: "Confirmed - maintained coherence long-term",
-            match: true
-        });
+// ═══════════════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════════
+const GRID = 96; // 96×96 = 9216 vertices
+const TERRAIN_SIZE = 4.0;
+const canvas = document.getElementById('terrain-canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled = false;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060d1a);
+scene.fog = new THREE.FogExp2(0x060d1a, 0.12);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 30);
+camera.position.set(0, 4, 5);
+camera.lookAt(0, 0, 0);
+
+// Lights
+const ambient = new THREE.AmbientLight(0x334466, 0.6);
+scene.add(ambient);
+const sun = new THREE.DirectionalLight(0xffd590, 1.8);
+sun.position.set(2.5, 5, 2);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x4066bb, 0.4);
+fill.position.set(-3, 2, -2);
+scene.add(fill);
+
+// Floor grid
+const gridHelper = new THREE.GridHelper(TERRAIN_SIZE, 12, 0x1a2d4a, 0x0f1e30);
+gridHelper.position.y = -0.05;
+scene.add(gridHelper);
+
+// Terrain geometry
+const terrainGeo = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, GRID-1, GRID-1);
+terrainGeo.rotateX(-Math.PI/2);
+
+// Pre-compute xz lookup table for speed
+const xzLut = new Float32Array(GRID*GRID*2);
+for(let i=0;i<GRID;i++){
+  for(let j=0;j<GRID;j++){
+    const k=(i*GRID+j)*2;
+    xzLut[k]   = -TERRAIN_SIZE/2 + j*(TERRAIN_SIZE/(GRID-1));
+    xzLut[k+1] = -TERRAIN_SIZE/2 + i*(TERRAIN_SIZE/(GRID-1));
+  }
+}
+
+// Add vertex colors
+const colorBuf = new Float32Array(GRID*GRID*3);
+terrainGeo.setAttribute('color', new THREE.BufferAttribute(colorBuf,3));
+const terrainMat = new THREE.MeshPhongMaterial({
+  vertexColors:true, shininess:30, specular:new THREE.Color(0x334466)
+});
+const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+scene.add(terrainMesh);
+
+// ── Update terrain geometry ──────────────────────
+function updateTerrain(values, forceGrey){
+  const grey = forceGrey !== undefined ? forceGrey : greyMode;
+  const fs = computeFactorScores(values);
+  const pos = terrainGeo.attributes.position.array;
+  const col = colorBuf;
+  for(let k=0;k<GRID*GRID;k++){
+    const x=xzLut[k*2], z=xzLut[k*2+1];
+    const h=computeHeight(x,z,fs);
+    pos[k*3+1]=h;
+    const [r,g,b]=computeColor(x,z,fs,grey);
+    col[k*3]=r; col[k*3+1]=g; col[k*3+2]=b;
+  }
+  terrainGeo.attributes.position.needsUpdate=true;
+  terrainGeo.attributes.color.needsUpdate=true;
+  terrainGeo.computeVertexNormals();
+  updateLabels(values, fs);
+  updateScoreBars(fs);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ORBIT CONTROLS (manual)
+// ═══════════════════════════════════════════════════════════════
+let azimuth = -Math.PI/4;
+let polar = Math.PI/3.5;
+let camRadius = 6.5;
+const camTarget = new THREE.Vector3(0, 0.3, 0);
+let isDragging = false;
+let lastMX=0, lastMY=0;
+
+function updateCamera(){
+  camera.position.x = camTarget.x + camRadius*Math.sin(polar)*Math.sin(azimuth);
+  camera.position.y = camTarget.y + camRadius*Math.cos(polar);
+  camera.position.z = camTarget.z + camRadius*Math.sin(polar)*Math.cos(azimuth);
+  camera.lookAt(camTarget);
+}
+updateCamera();
+
+canvas.addEventListener('mousedown',e=>{isDragging=true;lastMX=e.clientX;lastMY=e.clientY;e.preventDefault();});
+window.addEventListener('mousemove',e=>{
+  if(!isDragging) return;
+  const dx=e.clientX-lastMX, dy=e.clientY-lastMY;
+  azimuth -= dx*0.012;
+  polar = Math.max(0.05,Math.min(Math.PI/2-0.03, polar+dy*0.012));
+  lastMX=e.clientX; lastMY=e.clientY;
+  updateCamera();
+});
+window.addEventListener('mouseup',()=>isDragging=false);
+canvas.addEventListener('wheel',e=>{
+  camRadius=Math.max(2.5,Math.min(12, camRadius+e.deltaY*0.006));
+  updateCamera();
+  e.preventDefault();
+},{passive:false});
+
+// Touch support
+let lastTouchDist=0;
+canvas.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){isDragging=true;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}
+  else if(e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    lastTouchDist=Math.sqrt(dx*dx+dy*dy);
+  }
+  e.preventDefault();
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&isDragging){
+    const dx=e.touches[0].clientX-lastMX, dy=e.touches[0].clientY-lastMY;
+    azimuth-=dx*0.012; polar=Math.max(0.05,Math.min(Math.PI/2-0.03,polar+dy*0.012));
+    lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY; updateCamera();
+  } else if(e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    const d=Math.sqrt(dx*dx+dy*dy);
+    camRadius=Math.max(2.5,Math.min(12,camRadius*(lastTouchDist/d)));
+    lastTouchDist=d; updateCamera();
+  }
+  e.preventDefault();
+},{passive:false});
+canvas.addEventListener('touchend',()=>isDragging=false);
+
+// View presets
+const VIEWS={
+  iso:  {az:-Math.PI/4,  po:Math.PI/3.5, r:6.5},
+  top:  {az:-Math.PI/4,  po:0.06,        r:7.0},
+  north:{az:0,           po:1.35,        r:7.0},
+  east: {az:-Math.PI/2,  po:1.35,        r:7.0},
+  south:{az:Math.PI,     po:1.35,        r:7.0},
+  west: {az:Math.PI/2,   po:1.35,        r:7.0},
+};
+document.querySelectorAll('.view-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const v=VIEWS[btn.dataset.view];
+    if(!v) return;
+    azimuth=v.az; polar=v.po; camRadius=v.r;
+    updateCamera();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PEAK LABELS (DOM overlay)
+// ═══════════════════════════════════════════════════════════════
+const overlay = document.getElementById('label-overlay');
+const peakLabels = FACTORS.map((f,i)=>{
+  const div = document.createElement('div');
+  div.className = 'peak-label';
+  div.style.background = f.bgRgba;
+  div.style.borderColor = f.hex+'55';
+  div.innerHTML = `<span class="peak-label-name" style="color:${f.hex==='#dc2626'?'#fca5a5':f.hex==='#2563eb'?'#93c5fd':f.hex==='#7c3aed'?'#c4b5fd':f.hex==='#d97706'?'#fcd34d':f.hex==='#059669'?'#6ee7b7':f.hex==='#0891b2'?'#67e8f9':'#5eead4'}">${f.abbr}</span><span class="peak-label-score" id="pl-score-${i}">—</span>`;
+  overlay.appendChild(div);
+  return div;
+});
+
+const tmpVec = new THREE.Vector3();
+function updateLabels(values, factorScores){
+  const W=canvas.clientWidth, H=canvas.clientHeight;
+  FACTORS.forEach((f,i)=>{
+    const h = computeHeight(f.peakX, f.peakZ, factorScores);
+    tmpVec.set(f.peakX, h+0.25, f.peakZ);
+    tmpVec.project(camera);
+    const sx=(tmpVec.x+1)/2*W;
+    const sy=(-tmpVec.y+1)/2*H;
+    // Only show if in front of camera
+    if(tmpVec.z > 1.0){ peakLabels[i].style.display='none'; return; }
+    peakLabels[i].style.display='block';
+    peakLabels[i].style.left=sx+'px';
+    peakLabels[i].style.top=sy+'px';
+    const rawScore = factorScores[i]*4+1;
+    document.getElementById('pl-score-'+i).textContent = rawScore.toFixed(2);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BUILD LEFT INPUT PANEL
+// ═══════════════════════════════════════════════════════════════
+const leftPanel = document.getElementById('left-panel');
+
+FACTORS.forEach(f=>{
+  const block = document.createElement('div');
+  block.className = 'factor-block';
+  block.dataset.fid = f.id;
+  const hdr = document.createElement('div');
+  hdr.className = 'factor-header';
+  hdr.innerHTML = `
+    <span class="factor-dot" style="background:${f.hex}"></span>
+    <span class="factor-name">${f.name}</span>
+    <span class="factor-score-badge" id="fsbadge-${f.id}"
+      style="background:${f.hex}22;color:${f.hex}">3.00</span>`;
+  const itemsDiv = document.createElement('div');
+  itemsDiv.className = 'factor-items';
+  itemsDiv.id = 'fitems-'+f.id;
+
+  f.items.forEach(id=>{
+    const item = ITEMS[id-1];
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <div class="item-label">
+        <span>Item ${id}: ${item.short}${item.reversed?'<span class="reversed-tag">↙rev</span>':''}</span>
+        <span id="iv-${id}">3</span>
+      </div>
+      <div class="item-q">"${item.q}"</div>
+      <div class="item-slider-row">
+        <input type="range" class="prf-slider" id="slider-${id}"
+          min="1" max="5" value="3" step="1"
+          style="background:linear-gradient(90deg,${f.hex} 50%,#1a2d4a 50%)">
+        <span class="item-val" id="val-${id}">3</span>
+      </div>
+      <div class="scale-labels">
+        <span>1 SD</span><span>2 D</span><span>3 N</span><span>4 A</span><span>5 SA</span>
+      </div>`;
+    itemsDiv.appendChild(row);
+  });
+
+  hdr.addEventListener('click',()=>{
+    const shown = itemsDiv.style.display !== 'none';
+    itemsDiv.style.display = shown ? 'none' : 'block';
+  });
+
+  block.appendChild(hdr);
+  block.appendChild(itemsDiv);
+  leftPanel.appendChild(block);
+});
+
+// Wire sliders
+ITEMS.forEach(item=>{
+  const slider = document.getElementById('slider-'+item.id);
+  const valSpan = document.getElementById('val-'+item.id);
+  const ivSpan = document.getElementById('iv-'+item.id);
+  if(!slider) return;
+  slider.addEventListener('input',()=>{
+    const v=parseInt(slider.value);
+    t0Values[item.id-1]=v;
+    valSpan.textContent=v;
+    ivSpan.textContent=v;
+    const pct=((v-1)/4*100)+'%';
+    slider.style.background=`linear-gradient(90deg,${FACTORS.find(f=>f.id===item.fid).hex} ${pct},#1a2d4a ${pct})`;
+    if(!animating) updateTerrain(t0Values);
+    updateFactorBadge(item.fid);
+  });
+  slider.style['--webkit-slider-thumb-color']=FACTORS.find(f=>f.id===item.fid).hex;
+  slider.style.setProperty('--thumb-color',FACTORS.find(f=>f.id===item.fid).hex);
+  // Set thumb color via CSS injection
+  const fHex = FACTORS.find(f=>f.id===item.fid).hex;
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `#slider-${item.id}::-webkit-slider-thumb{background:${fHex}!important}`;
+  document.head.appendChild(styleEl);
+});
+
+function updateFactorBadge(fid){
+  const f=FACTORS.find(x=>x.id===fid);
+  const items=f.items;
+  const scores=computeFactorScores(t0Values);
+  const fi=FACTORS.indexOf(f);
+  const rawScore=(scores[fi]*4+1).toFixed(2);
+  const badge=document.getElementById('fsbadge-'+fid);
+  if(badge) badge.textContent=rawScore;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEGEND & SCORE BARS
+// ═══════════════════════════════════════════════════════════════
+const legendRows = document.getElementById('legend-rows');
+FACTORS.forEach(f=>{
+  const row = document.createElement('div');
+  row.className = 'factor-legend-row';
+  row.innerHTML = `
+    <span class="fl-dot" style="background:${f.hex}"></span>
+    <div class="fl-text">
+      <strong>${f.abbr} — ${f.name}</strong>
+      ${f.desc}
+    </div>`;
+  legendRows.appendChild(row);
+});
+
+const scoreBarsEl = document.getElementById('score-bars');
+FACTORS.forEach((f,i)=>{
+  const row = document.createElement('div');
+  row.style.marginBottom='.3rem';
+  row.innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:.62rem;margin-bottom:.15rem">
+      <span style="color:${f.hex};font-weight:600">${f.abbr}</span>
+      <span id="sb-val-${i}" style="color:var(--text-dim);font-family:'JetBrains Mono',monospace">3.00</span>
+    </div>
+    <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden">
+      <div id="sb-bar-${i}" style="height:100%;background:${f.hex};width:50%;transition:.3s"></div>
+    </div>`;
+  scoreBarsEl.appendChild(row);
+});
+
+function updateScoreBars(factorScores){
+  FACTORS.forEach((f,i)=>{
+    const raw=(factorScores[i]*4+1).toFixed(2);
+    const pct=(factorScores[i]*100)+'%';
+    const valEl=document.getElementById('sb-val-'+i);
+    const barEl=document.getElementById('sb-bar-'+i);
+    if(valEl) valEl.textContent=raw;
+    if(barEl) barEl.style.width=pct;
+    const badge=document.getElementById('fsbadge-'+f.id);
+    if(badge) badge.textContent=raw;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RIGHT PANEL CONTROLS
+// ═══════════════════════════════════════════════════════════════
+// Color mode
+document.getElementById('mode-color').addEventListener('click',()=>{
+  greyMode=false;
+  document.getElementById('mode-color').classList.add('active');
+  document.getElementById('mode-grey').classList.remove('active');
+  updateTerrain(animating ? getCurrentAnimValues() : t0Values);
+});
+document.getElementById('mode-grey').addEventListener('click',()=>{
+  greyMode=true;
+  document.getElementById('mode-grey').classList.add('active');
+  document.getElementById('mode-color').classList.remove('active');
+  updateTerrain(animating ? getCurrentAnimValues() : t0Values);
+});
+
+// Exaggeration
+document.getElementById('exag-slider').addEventListener('input',function(){
+  exagScale=this.value/10;
+  const pct=((this.value-5)/(30-5)*100)+'%';
+  this.style.setProperty('--pct',pct);
+  document.getElementById('exag-val').textContent=exagScale.toFixed(1)+'×';
+  updateTerrain(animating ? getCurrentAnimValues() : t0Values);
+});
+
+// Sigma
+document.getElementById('sigma-slider').addEventListener('input',function(){
+  sigmaPeak=this.value/10;
+  const pct=((this.value-3)/(15-3)*100)+'%';
+  this.style.setProperty('--pct',pct);
+  document.getElementById('sigma-val').textContent=sigmaPeak.toFixed(1);
+  updateTerrain(animating ? getCurrentAnimValues() : t0Values);
+});
+
+// Copy/Swap
+document.getElementById('btn-copy-to-tn').addEventListener('click',()=>{
+  t0Values.forEach((v,i)=>{
+    tnValues[i]=v;
+    const s=document.getElementById('tn-sl-'+i);
+    const vd=document.getElementById('tn-vd-'+i);
+    if(s){ s.value=v; const pct=((v-1)/4*100)+'%'; s.style.background=`linear-gradient(90deg,var(--teal) ${pct},var(--border) ${pct})`; }
+    if(vd) vd.textContent=v;
+  });
+});
+document.getElementById('btn-swap').addEventListener('click',()=>{
+  ITEMS.forEach((item,i)=>{
+    const tmp=t0Values[i];
+    t0Values[i]=tnValues[i];
+    tnValues[i]=tmp;
+    const s0=document.getElementById('slider-'+item.id);
+    const v0=document.getElementById('val-'+item.id);
+    const iv0=document.getElementById('iv-'+item.id);
+    const f=FACTORS.find(x=>x.id===item.fid);
+    if(s0){
+      s0.value=t0Values[i];
+      const pct=((t0Values[i]-1)/4*100)+'%';
+      s0.style.background=`linear-gradient(90deg,${f.hex} ${pct},#1a2d4a ${pct})`;
     }
-    
-    if (outcome.path === 'B' && final.A > caseData.baselineScores.A) {
-        validations.push({
-            prediction: "Identity strengthened (A-score increases)",
-            actual: outcome.identityOutcome || "Identity strengthened",
-            match: true
-        });
+    if(v0) v0.textContent=t0Values[i];
+    if(iv0) iv0.textContent=t0Values[i];
+    const sn=document.getElementById('tn-sl-'+i);
+    const vdn=document.getElementById('tn-vd-'+i);
+    if(sn){
+      sn.value=tnValues[i];
+      const pct2=((tnValues[i]-1)/4*100)+'%';
+      sn.style.background=`linear-gradient(90deg,var(--teal) ${pct2},var(--border) ${pct2})`;
     }
-    
-    if (outcome.path === 'B' && final.CPR > caseData.baselineScores.CPR) {
-        validations.push({
-            prediction: "CIB production increased",
-            actual: outcome.legacyImpact || "Significant legacy created",
-            match: true
-        });
+    if(vdn) vdn.textContent=tnValues[i];
+  });
+  FACTORS.forEach(f=>updateFactorBadge(f.id));
+  updateTerrain(t0Values);
+});
+
+// Reset
+document.getElementById('btn-reset-all').addEventListener('click',()=>{
+  ITEMS.forEach((item,i)=>{
+    t0Values[i]=3; tnValues[i]=3;
+    const s0=document.getElementById('slider-'+item.id);
+    const v0=document.getElementById('val-'+item.id);
+    const iv0=document.getElementById('iv-'+item.id);
+    const f=FACTORS.find(x=>x.id===item.fid);
+    if(s0){ s0.value=3; s0.style.background=`linear-gradient(90deg,${f.hex} 50%,#1a2d4a 50%)`; }
+    if(v0) v0.textContent=3;
+    if(iv0) iv0.textContent=3;
+    const sn=document.getElementById('tn-sl-'+i);
+    const vdn=document.getElementById('tn-vd-'+i);
+    if(sn){ sn.value=3; sn.style.background='linear-gradient(90deg,var(--teal) 50%,var(--border) 50%)'; }
+    if(vdn) vdn.textContent=3;
+  });
+  animProgress=0; animating=false;
+  updateAnimProgressUI(0);
+  updateTerrain(t0Values);
+  FACTORS.forEach(f=>updateFactorBadge(f.id));
+});
+
+// ═══════════════════════════════════════════════════════════════
+// t=n PANEL
+// ═══════════════════════════════════════════════════════════════
+const tnGrid = document.getElementById('tn-grid');
+ITEMS.forEach((item,i)=>{
+  const col = document.createElement('div');
+  col.className='tn-item';
+  const fHex=FACTORS.find(f=>f.id===item.fid).hex;
+  col.innerHTML=`
+    <div class="tn-item-label" style="color:${fHex}88">${item.short}${item.reversed?'↙':''}</div>
+    <div class="tn-item-row">
+      <input type="range" class="tn-slider" id="tn-sl-${i}"
+        min="1" max="5" value="3" step="1"
+        style="background:linear-gradient(90deg,var(--teal) 50%,var(--border) 50%)">
+      <span class="tn-val" id="tn-vd-${i}">3</span>
+    </div>`;
+  tnGrid.appendChild(col);
+
+  const slider=document.getElementById('tn-sl-'+i);
+  const styleEl2=document.createElement('style');
+  styleEl2.textContent=`#tn-sl-${i}::-webkit-slider-thumb{background:${fHex}!important}`;
+  document.head.appendChild(styleEl2);
+
+  slider.addEventListener('input',function(){
+    const v=parseInt(this.value);
+    tnValues[i]=v;
+    const pct=((v-1)/4*100)+'%';
+    this.style.background=`linear-gradient(90deg,var(--teal) ${pct},var(--border) ${pct})`;
+    document.getElementById('tn-vd-'+i).textContent=v;
+  });
+});
+
+document.getElementById('tn-setup-toggle').addEventListener('click',()=>{
+  const panel=document.getElementById('tn-panel');
+  const open=panel.style.display==='block';
+  panel.style.display=open?'none':'block';
+  document.getElementById('tn-setup-toggle').textContent=open?'t=n Setup ▾':'t=n Setup ▴';
+});
+
+// Duration
+document.getElementById('dur-slider').addEventListener('input',function(){
+  animDuration=parseInt(this.value);
+  document.getElementById('dur-val').textContent=animDuration+'s';
+  const pct=((this.value-1)/(20-1)*100)+'%';
+  this.style.setProperty('--pct',pct);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ANIMATION SYSTEM
+// ═══════════════════════════════════════════════════════════════
+function easeInOut(t){ return t<0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function getCurrentAnimValues(){
+  const e=easeInOut(animProgress);
+  return t0Values.map((v,i)=> v*(1-e) + tnValues[i]*e);
+}
+
+document.getElementById('btn-anim-play').addEventListener('click',function(){
+  if(animating){
+    animating=false;
+    this.textContent='▶ Resume';
+    this.classList.remove('active');
+  } else {
+    if(animProgress>=1) animProgress=0;
+    animating=true;
+    animLastTime=null;
+    this.textContent='❚❚ Pause';
+    this.classList.add('active');
+  }
+});
+
+document.getElementById('btn-anim-reset').addEventListener('click',()=>{
+  animating=false;
+  animProgress=0;
+  animLastTime=null;
+  document.getElementById('btn-anim-play').textContent='▶ Play';
+  document.getElementById('btn-anim-play').classList.remove('active');
+  updateAnimProgressUI(0);
+  updateTerrain(t0Values);
+});
+
+function updateAnimProgressUI(p){
+  document.getElementById('anim-progress-fill').style.width=(p*100)+'%';
+  document.getElementById('anim-progress-thumb').style.left=(p*100)+'%';
+  document.getElementById('anim-pct-label').textContent=Math.round(p*100)+'%';
+}
+
+// Progress bar drag
+const progWrap=document.getElementById('anim-progress-wrap');
+let draggingProg=false;
+progWrap.addEventListener('mousedown',e=>{
+  draggingProg=true;
+  seekAnim(e);
+  animating=false;
+  document.getElementById('btn-anim-play').textContent='▶ Play';
+  document.getElementById('btn-anim-play').classList.remove('active');
+});
+window.addEventListener('mousemove',e=>{ if(draggingProg) seekAnim(e); });
+window.addEventListener('mouseup',()=>draggingProg=false);
+function seekAnim(e){
+  const rect=progWrap.getBoundingClientRect();
+  animProgress=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+  updateAnimProgressUI(animProgress);
+  updateTerrain(getCurrentAnimValues());
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════════
+function downloadPNG(grey){
+  updateTerrain(animating ? getCurrentAnimValues() : t0Values, grey);
+  renderer.render(scene,camera);
+  const name=(document.getElementById('profile-name').value||'prf-landscape')
+    .replace(/[^a-z0-9_\-]/gi,'_');
+  const link=document.createElement('a');
+  link.download=name+(grey?'_grey':'')+'.png';
+  link.href=renderer.domElement.toDataURL('image/png');
+  link.click();
+  if(grey) updateTerrain(animating ? getCurrentAnimValues() : t0Values, greyMode);
+}
+document.getElementById('btn-dl-color').addEventListener('click',()=>downloadPNG(false));
+document.getElementById('btn-dl-grey').addEventListener('click',()=>downloadPNG(true));
+document.getElementById('btn-print').addEventListener('click',()=>window.print());
+
+// ═══════════════════════════════════════════════════════════════
+// RESIZE HANDLER
+// ═══════════════════════════════════════════════════════════════
+function resizeRenderer(){
+  const W=canvas.clientWidth, H=canvas.clientHeight;
+  renderer.setSize(W,H,false);
+  camera.aspect=W/H;
+  camera.updateProjectionMatrix();
+}
+const resizeObs=new ResizeObserver(resizeRenderer);
+resizeObs.observe(canvas.parentElement);
+resizeRenderer();
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER LOOP
+// ═══════════════════════════════════════════════════════════════
+function renderLoop(time){
+  requestAnimationFrame(renderLoop);
+
+  if(animating){
+    if(animLastTime===null) animLastTime=time;
+    const dt=(time-animLastTime)/1000;
+    animLastTime=time;
+    animProgress=Math.min(1, animProgress+dt/animDuration);
+    updateAnimProgressUI(animProgress);
+    updateTerrain(getCurrentAnimValues());
+    if(animProgress>=1){
+      animating=false;
+      document.getElementById('btn-anim-play').textContent='▶ Play';
+      document.getElementById('btn-anim-play').classList.remove('active');
     }
-    
-    return `
-        <div class="bg-purple-50 rounded-xl p-6 border-2 border-purple-300">
-            <h4 class="font-bold text-purple-900 mb-4">Model Validation: Did Our Predictions Match Reality?</h4>
-            <div class="space-y-3">
-                ${validations.map(v => `
-                    <div class="flex items-start gap-3 p-3 bg-white rounded-lg">
-                        <span class="text-2xl flex-shrink-0">${v.match ? '✓' : '✗'}</span>
-                        <div class="flex-1">
-                            <div class="font-semibold text-gray-900">Prediction: ${v.prediction}</div>
-                            <div class="text-sm text-gray-700">Actual: ${v.actual}</div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-            
-            <div class="mt-4 p-4 bg-white rounded-lg border-2 border-green-400">
-                <p class="text-sm text-gray-900">
-                    <strong class="text-green-700">Validation Result:</strong> 
-                    Our thermodynamic model correctly predicted the trajectory ${caseData.name} would experience by choosing Path ${outcome.path}.
-                    This suggests the CIB Thermodynamics framework captures real patterns of human flourishing.
-                </p>
-            </div>
-        </div>
-    `;
+  }
+
+  renderer.render(scene,camera);
 }
 
-// ==========================================
-// DISCUSSION QUESTIONS
-// ==========================================
-
-function showDiscussionQuestions(caseId) {
-    const caseData = historicalCases[caseId];
-    const questions = generateDiscussionQuestions(caseId);
-    
-    const container = document.getElementById('actual-outcome');
-    container.innerHTML += `
-        <section class="bg-white rounded-2xl shadow-xl p-8 mt-8">
-            <h3 class="text-2xl font-bold text-gray-900 mb-6">Discussion Questions for Class</h3>
-            
-            <div class="space-y-6">
-                ${questions.map((q, idx) => `
-                    <details class="border-2 border-gray-200 rounded-xl overflow-hidden">
-                        <summary class="p-5 bg-gray-50 cursor-pointer hover:bg-gray-100 font-semibold text-gray-900">
-                            ${idx + 1}. ${q.question}
-                        </summary>
-                        <div class="p-5 space-y-3">
-                            <div>
-                                <h5 class="font-bold text-gray-900 mb-2">Consider:</h5>
-                                <ul class="list-disc list-inside space-y-1 text-gray-700">
-                                    ${q.prompts.map(p => `<li>${p}</li>`).join('')}
-                                </ul>
-                            </div>
-                            ${q.connection ? `
-                                <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
-                                    <strong class="text-blue-900">Connection to Your Life:</strong>
-                                    <p class="text-blue-800 text-sm mt-1">${q.connection}</p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </details>
-                `).join('')}
-            </div>
-            
-            <div class="mt-8 flex gap-4">
-                <button onclick="backToSelection()" class="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">
-                    Choose Another Case
-                </button>
-                <button onclick="window.print()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
-                    Print Case Study
-                </button>
-            </div>
-        </section>
-    `;
-}
-
-function generateDiscussionQuestions(caseId) {
-    const questions = {
-        mandela: [
-            {
-                question: "The Thermodynamic Paradox: How does spending energy create energy?",
-                prompts: [
-                    "Exercise costs metabolic energy. How did it INCREASE Mandela's available energy?",
-                    "What's the difference between 'conserving energy' and 'creating capacity'?",
-                    "Can you think of times when 'resting' actually made you more tired long-term?"
-                ],
-                connection: "When are YOU in 'extraction situations' where others control most of your life? What's your BioBond protocol?"
-            },
-            {
-                question: "Self-Care as Resistance: Is this selfish or necessary?",
-                prompts: [
-                    "Guards called exercise 'pointless' - it wouldn't get him released. Were they right?",
-                    "What's the difference between self-care and self-indulgence?",
-                    "How is maintaining your identity a form of resistance to oppression?"
-                ],
-                connection: "Are you sacrificing self-care to meet others' demands? What's the long-term cost?"
-            },
-            {
-                question: "The 27-Year Timeline: Why does the simulation matter?",
-                prompts: [
-                    "If Mandela had skipped exercise for 'just' the first year, what cascade would follow?",
-                    "At what point does identity damage become irreversible?",
-                    "How did his daily choices enable South Africa's peaceful transition decades later?"
-                ],
-                connection: "What daily practices are you maintaining or abandoning? Run your own 5-year simulation."
-            }
-        ],
-        
-        boisjoly: [
-            {
-                question: "The Cost of Truth: Why was the 'easy' path actually harder?",
-                prompts: [
-                    "Calculate the metabolic cost of maintaining 'I'm a good person' while children die",
-                    "What's the difference between one-time suffering and permanent cognitive dissonance?",
-                    "Which path required MORE total energy over 5 years?"
-                ],
-                connection: "Have you ever chosen the 'easy' path that required constant rationalization? What did it cost you?"
-            },
-            {
-                question: "Moral Injury vs. Moral Courage: What's the mechanism?",
-                prompts: [
-                    "Why did limited testimony lead to identity fracture?",
-                    "Why did full truth (despite destroying his career) STRENGTHEN his identity?",
-                    "What does this tell us about the relationship between values and thermodynamic health?"
-                ],
-                connection: "Are you in a situation where your values conflict with your actions? What's the A-score trajectory?"
-            },
-            {
-                question: "Legacy Through Suffering: Was it worth it?",
-                prompts: [
-                    "Boisjoly's testimony changed engineering ethics globally. Could he have known that in 1986?",
-                    "If you won't see the results, does the meaning still exist?",
-                    "How do you calculate ROI for CIB production that outlives you?"
-                ],
-                connection: "What would you endure to prevent future harm to people you'll never meet?"
-            }
-        ],
-        
-        salk: [
-            {
-                question: "The $7 Billion Question: What did Salk optimize for?",
-                prompts: [
-                    "Financial capital maximizes wealth for one generation. CIB production compounds forever. Calculate the difference.",
-                    "Did 'giving it away' actually COST him or BENEFIT him thermodynamically?",
-                    "What's the metabolic cost of knowing poor children died because you charged for vaccine?"
-                ],
-                connection: "When have you chosen generativity over extraction? What happened to your meaning scores?"
-            },
-            {
-                question: "Cognitive Dissonance Energy Drain: The hidden cost of wealth",
-                prompts: [
-                    "If Salk had patented, how much energy would he burn daily on rationalization?",
-                    "Every news story about polio in poor countries = assault on identity. How long can you sustain that?",
-                    "Compare: Zero cognitive dissonance vs. constant rationalization. Which produces more Fire long-term?"
-                ],
-                connection: "Are you 'getting ahead' in ways that require you to not think about the consequences?"
-            },
-            {
-                question: "The Generativity Cascade: Why does giving create more?",
-                prompts: [
-                    "Salk's CPR INCREASED after giving away the patent. How is this thermodynamically possible?",
-                    "His decision influenced measles vaccine, hepatitis B, open science movement. Can you measure that CIB production?",
-                    "'Could you patent the sun?' became a civilizational meme. What's that worth?"
-                ],
-                connection: "What could you give away that would create more value than you could ever extract by keeping it?"
-            }
-        ],
-        
-        carson: [
-            {
-                question: "The Terminal Timeline: How do you spend your last Fire?",
-                prompts: [
-                    "Carson had ~2 years of metabolic capacity left. Rest peacefully or fight chemical industry?",
-                    "When Fire is almost out, what's the ethical use of remaining energy?",
-                    "She died before EPA was created. Did her CIB production 'succeed'?"
-                ],
-                connection: "If you knew you had 2 years left, what would you build with the time? (You don't know you DON'T have 2 years...)"
-            },
-            {
-                question: "Legacy vs. Comfort: Is this even a trade-off?",
-                prompts: [
-                    "Path A: Higher LQI (physical comfort), lower CPR (no legacy). Path B: Opposite. Which would YOU choose?",
-                    "Does 'dying well' mean dying comfortably or dying meaningfully?",
-                    "Carson's identity STRENGTHENED as her body failed. How is this thermodynamically possible?"
-                ],
-                connection: "What are you NOT doing because it would be uncomfortable, even though it would create lasting value?"
-            },
-            {
-                question: "The Infinite Horizon: When does your CIB production end?",
-                prompts: [
-                    "Carson died in 1964. Environmental movement still running on her CIB in 2026. Calculate the temporal breadth.",
-                    "Her C-score was 95 despite dying - vision extended beyond her death. What does this mean for meaning?",
-                    "Can you die thermodynamically 'successful' even if you die physically 'defeated'?"
-                ],
-                connection: "What are you building that will keep creating value after you're gone?"
-            }
-        ]
-    };
-    
-    return questions[caseId] || [];
-}
-
-// ==========================================
-// COMPARATIVE ANALYSIS
-// ==========================================
-
-function displayComparativeAnalysis() {
-    document.getElementById('case-selection').classList.add('hidden');
-    const container = document.getElementById('case-display');
-    container.classList.remove('hidden');
-    
-    container.innerHTML = `
-        <div class="space-y-8">
-            <div class="flex items-center gap-4 mb-6">
-                <button onclick="backToSelection()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                    ← Back to Cases
-                </button>
-                <h2 class="text-3xl font-bold text-gray-900">Comparative Analysis: Universal Patterns</h2>
-            </div>
-            
-            <section class="bg-white rounded-2xl shadow-xl p-8">
-                <h3 class="text-2xl font-bold text-gray-900 mb-6">Common Thermodynamic Patterns</h3>
-                
-                ${generateComparativeTable()}
-                
-                <div class="mt-8 space-y-6">
-                    ${generateUniversalInsights()}
-                </div>
-            </section>
-            
-            <section class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl shadow-xl p-8 border-2 border-purple-300">
-                <h3 class="text-2xl font-bold text-gray-900 mb-6">The Meta-Pattern: What Makes the "Hard" Path Lead to Flourishing?</h3>
-                ${generateMetaPattern()}
-            </section>
-        </div>
-    `;
-}
-
-function generateComparativeTable() {
-    const cases = Object.keys(historicalCases);
-    
-    return `
-        <div class="overflow-x-auto">
-            <table class="w-full border-2 border-gray-300">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-4 py-3 text-left border-2 border-gray-300">Figure</th>
-                        <th class="px-4 py-3 text-left border-2 border-gray-300">Baseline Vulnerability</th>
-                        <th class="px-4 py-3 text-left border-2 border-gray-300">Path A (Easy)</th>
-                        <th class="px-4 py-3 text-left border-2 border-gray-300">Path B (Hard)</th>
-                        <th class="px-4 py-3 text-left border-2 border-gray-300">Actual Choice</th>
-                        <th class="px-4 py-3 text-left border-2 border-gray-300">Long-term Result</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${cases.map(caseId => {
-                        const c = historicalCases[caseId];
-                        return `
-                            <tr class="border-t-2 border-gray-300 hover:bg-gray-50">
-                                <td class="px-4 py-3 border-2 border-gray-300 font-bold">${c.name}</td>
-                                <td class="px-4 py-3 border-2 border-gray-300 text-sm">${identifyVulnerabilities(c.baselineScores)}</td>
-                                <td class="px-4 py-3 border-2 border-gray-300 text-sm">${c.decision.pathA.name}</td>
-                                <td class="px-4 py-3 border-2 border-gray-300 text-sm">${c.decision.pathB.name}</td>
-                                <td class="px-4 py-3 border-2 border-gray-300 text-center">
-                                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full font-bold">
-                                        ${c.actualOutcome.path}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 border-2 border-gray-300 text-sm">${c.actualOutcome.metrics.identityOutcome}</td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-
-function generateUniversalInsights() {
-    return `
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="p-6 bg-blue-50 border-2 border-blue-300 rounded-xl">
-                <h4 class="font-bold text-blue-900 mb-3">Pattern 1: Authenticity Over Comfort</h4>
-                <p class="text-sm text-blue-800">
-                    <strong>All four</strong> chose the path aligned with their core identity (high MDI-Authenticity) 
-                    over the path offering external rewards or comfort. Result: Identity <em>strengthened</em> rather than fractured.
-                </p>
-            </div>
-            
-            <div class="p-6 bg-green-50 border-2 border-green-300 rounded-xl">
-                <h4 class="font-bold text-green-900 mb-3">Pattern 2: Short-term Cost, Long-term Gain</h4>
-                <p class="text-sm text-green-800">
-                    Path B always had <strong>higher initial metabolic cost</strong> but 
-                    <strong>lower total cost</strong> because no energy wasted on cognitive dissonance.
-                </p>
-            </div>
-            
-            <div class="p-6 bg-purple-50 border-2 border-purple-300 rounded-xl">
-                <h4 class="font-bold text-purple-900 mb-3">Pattern 3: Generativity Creates Capacity</h4>
-                <p class="text-sm text-purple-800">
-                    Every case: CPR increased AFTER choosing the generative path. 
-                    <strong>Giving away</strong> created more capacity than <strong>extracting</strong> ever could.
-                </p>
-            </div>
-            
-            <div class="p-6 bg-orange-50 border-2 border-orange-300 rounded-xl">
-                <h4 class="font-bold text-orange-900 mb-3">Pattern 4: Legacy Trumps Lifetime</h4>
-                <p class="text-sm text-orange-800">
-                    All chose paths that maximized CIB production <strong>beyond their lifespan</strong> 
-                    over paths that maximized personal benefit within lifespan.
-                </p>
-            </div>
-        </div>
-    `;
-}
-
-function generateMetaPattern() {
-    return `
-        <div class="space-y-4 text-gray-800">
-            <p class="text-lg">
-                Across all four cases, the <strong>"hard" path led to thermodynamic flourishing</strong> while 
-                the <strong>"easy" path led to identity degradation</strong>. Why?
-            </p>
-            
-            <div class="bg-white rounded-xl p-6">
-                <h4 class="font-bold text-gray-900 mb-4">The Universal Equation:</h4>
-                <div class="space-y-3 text-sm">
-                    <div class="p-3 bg-red-50 rounded-lg">
-                        <strong class="text-red-900">Path A (Easy):</strong>
-                        <div class="mt-1 text-red-800">
-                            Low immediate cost + High cognitive dissonance + Identity-values misalignment = 
-                            <strong>Permanent metabolic drain → Identity fracture</strong>
-                        </div>
-                    </div>
-                    
-                    <div class="p-3 bg-green-50 rounded-lg">
-                        <strong class="text-green-900">Path B (Hard):</strong>
-                        <div class="mt-1 text-green-800">
-                            High immediate cost + Zero cognitive dissonance + Perfect identity-values alignment = 
-                            <strong>One-time cost → Sustained flourishing</strong>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-indigo-50 border-2 border-indigo-300 rounded-xl p-6">
-                <h4 class="font-bold text-indigo-900 mb-3">The Thermodynamic Law of Moral Courage:</h4>
-                <p class="text-indigo-900 text-lg italic">
-                    "Choices that maximize short-term comfort while violating core identity create 
-                    permanent metabolic costs that exceed the initial suffering of authentic action."
-                </p>
-            </div>
-            
-            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6">
-                <strong class="text-yellow-900">For Students:</strong>
-                <p class="text-yellow-800 mt-2">
-                    The simulations show that <strong>thermodynamic models can predict moral outcomes</strong>. 
-                    This isn't philosophy—it's physics. Your identity is a dissipative structure. 
-                    The choices you make determine whether you flourish or fracture.
-                </p>
-            </div>
-        </div>
-    `;
-}
-
-function backToSelection() {
-    document.getElementById('case-display').classList.add('hidden');
-    document.getElementById('case-display').innerHTML = '';
-    document.getElementById('case-selection').classList.remove('hidden');
-    simulationResults = null;
-    currentCase = null;
-    if (currentChart) {
-        currentChart.destroy();
-        currentChart = null;
-    }
-}
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+updateTerrain(t0Values);
+renderLoop(0);
 </script>
-
 </body>
 </html>
